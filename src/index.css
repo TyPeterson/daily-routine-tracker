@@ -1,0 +1,136 @@
+@import "tailwindcss";
+
+/*
+ * Semantic color tokens, following the system light/dark preference.
+ * Utilities like bg-canvas / text-ink / border-line come from the
+ * @theme inline block below.
+ */
+:root {
+  --canvas: #f2f2f7;
+  --surface: #ffffff;
+  --surface2: #e9e9ee;
+  --ink: #131316;
+  --ink-dim: #71717a;
+  --line: rgba(0, 0, 0, 0.08);
+  --accent: #4f46e5;
+  --accent-soft: rgba(79, 70, 229, 0.12);
+  --good: #059669;
+  --good-soft: rgba(5, 150, 105, 0.14);
+  --danger: #dc2626;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --canvas: #000000;
+    --surface: #1c1c1e;
+    --surface2: #2c2c2e;
+    --ink: #f5f5f7;
+    --ink-dim: #98989f;
+    --line: rgba(255, 255, 255, 0.12);
+    --accent: #818cf8;
+    --accent-soft: rgba(129, 140, 248, 0.18);
+    --good: #34d399;
+    --good-soft: rgba(52, 211, 153, 0.18);
+    --danger: #f87171;
+  }
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface2: var(--surface2);
+  --color-ink: var(--ink);
+  --color-ink-dim: var(--ink-dim);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-good: var(--good);
+  --color-good-soft: var(--good-soft);
+  --color-danger: var(--danger);
+}
+
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
+    Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  /* native-app feel: no rubber-band bounce on the page itself, no tap flash */
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+input,
+textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* 16px inputs prevent iOS from auto-zooming on focus */
+input,
+textarea,
+select,
+button {
+  font: inherit;
+  font-size: 16px;
+  color: inherit;
+}
+
+input[type="date"],
+input[type="time"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes drop-in {
+  from {
+    transform: translateY(-120%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+.animate-sheet-up {
+  animation: sheet-up 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+.animate-drop-in {
+  animation: drop-in 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
