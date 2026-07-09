@@ -6,6 +6,8 @@ export interface SwipeAction {
   label: string
   /** background utility class, e.g. 'bg-danger' */
   bg: string
+  /** text color class; defaults to white print */
+  fg?: string
   onAct: () => void
 }
 
@@ -67,7 +69,7 @@ export function SwipeActions({
   }
 
   return (
-    <div className="relative overflow-hidden rounded-2xl">
+    <div className="module relative overflow-hidden">
       <div className="absolute inset-y-0 right-0 flex" style={{ width: fullWidth }}>
         {actions.map((a) => (
           <button
@@ -77,7 +79,7 @@ export function SwipeActions({
               onOpenChange(false)
               a.onAct()
             }}
-            className={`flex flex-col items-center justify-center gap-1 text-[11px] font-medium text-white ${a.bg}`}
+            className={`flex flex-col items-center justify-center gap-1 text-[11px] font-bold ${a.fg ?? 'text-white'} ${a.bg}`}
             style={{ width: ACTION_WIDTH }}
           >
             <Icon name={a.icon} size={19} />

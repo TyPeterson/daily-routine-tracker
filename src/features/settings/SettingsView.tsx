@@ -43,42 +43,43 @@ export default function SettingsView() {
   }
 
   const doCheckUpdates = async () => {
-    setUpdateStatus('Checking…')
+    setUpdateStatus('checking…')
     await checkForUpdates()
     // if a new version was found the update banner takes it from here
-    setTimeout(() => setUpdateStatus('Up to date (unless a banner appeared)'), 1200)
+    setTimeout(() => setUpdateStatus('up to date (unless a banner appeared)'), 1200)
   }
 
   return (
-    <Screen title="Settings">
+    <Screen title="settings" subtitle="routine">
       <div className="space-y-5">
         <section>
-          <SectionLabel>Data</SectionLabel>
+          <SectionLabel index="01">data</SectionLabel>
           <Group>
             <button
               type="button"
               onClick={() => void doExport()}
               className="flex min-h-12 w-full items-center justify-between px-4 py-2 text-left"
             >
-              <span className="text-[16px]">Export backup</span>
-              <Icon name="download" size={18} className="text-ink-dim" />
+              <span className="text-[15px]">export backup</span>
+              <Icon name="download" size={17} className="text-ink-dim" />
             </button>
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
               className="flex min-h-12 w-full items-center justify-between px-4 py-2 text-left"
             >
-              <span className="text-[16px]">Import backup</span>
-              <Icon name="upload" size={18} className="text-ink-dim" />
+              <span className="text-[15px]">import backup</span>
+              <Icon name="upload" size={17} className="text-ink-dim" />
             </button>
-            <Row label="Protected storage">
-              <span className="text-[15px] text-ink-dim">
-                {persisted == null ? '—' : persisted ? 'Yes' : 'Not granted'}
+            <Row label="protected storage">
+              <span className="flex items-center gap-2 text-[14px] text-ink-dim">
+                <span className={`led ${persisted ? 'led-good' : ''}`} />
+                {persisted == null ? '—' : persisted ? 'yes' : 'not granted'}
               </span>
             </Row>
           </Group>
-          <p className="mt-1.5 px-2 text-[12px] text-ink-dim">
-            All data lives only on this device. Export a backup now and then in case you lose or
+          <p className="mt-1.5 px-1 text-[11px] text-ink-dim">
+            all data lives only on this device. export a backup now and then in case you lose or
             replace your phone.
           </p>
           <input
@@ -95,11 +96,11 @@ export default function SettingsView() {
         </section>
 
         <section>
-          <SectionLabel>App</SectionLabel>
+          <SectionLabel index="02">app</SectionLabel>
           <Group>
-            <Row label="Version">
-              <span className="text-[15px] text-ink-dim">
-                {format(new Date(__BUILD_DATE__), 'MMM d, yyyy h:mm a')}
+            <Row label="version">
+              <span className="text-[13px] text-ink-dim">
+                {format(new Date(__BUILD_DATE__), 'MMM d, yyyy h:mm a').toLowerCase()}
               </span>
             </Row>
             <button
@@ -107,8 +108,8 @@ export default function SettingsView() {
               onClick={() => void doCheckUpdates()}
               className="flex min-h-12 w-full items-center justify-between px-4 py-2 text-left"
             >
-              <span className="text-[16px]">Check for updates</span>
-              <span className="text-[13px] text-ink-dim">{updateStatus ?? ''}</span>
+              <span className="text-[15px]">check for updates</span>
+              <span className="text-[12px] text-ink-dim">{updateStatus ?? ''}</span>
             </button>
             <a
               href="https://github.com/TyPeterson/daily-routine-tracker"
@@ -116,18 +117,18 @@ export default function SettingsView() {
               rel="noreferrer"
               className="flex min-h-12 w-full items-center justify-between px-4 py-2"
             >
-              <span className="text-[16px]">Source on GitHub</span>
-              <Icon name="chevron-right" size={16} className="text-ink-dim/60" />
+              <span className="text-[15px]">source on github</span>
+              <Icon name="chevron-right" size={15} className="text-ink-dim/60" />
             </a>
           </Group>
         </section>
 
         <section>
-          <SectionLabel>Install on iPhone</SectionLabel>
-          <div className="rounded-2xl bg-surface p-4 text-[14px] leading-relaxed text-ink-dim">
-            Open this site in <span className="font-semibold text-ink">Safari</span>, tap the{' '}
-            <span className="font-semibold text-ink">Share</span> button, then{' '}
-            <span className="font-semibold text-ink">Add to Home Screen</span>. It launches
+          <SectionLabel index="03">install on iphone</SectionLabel>
+          <div className="module dots-bg p-4 text-[13px] leading-relaxed text-ink-dim">
+            open this site in <span className="font-bold text-ink">safari</span>, tap{' '}
+            <span className="font-bold text-ink">share</span>, then{' '}
+            <span className="font-bold text-ink">add to home screen</span>. it launches
             full-screen, works offline, and updates itself when new versions are deployed.
           </div>
         </section>

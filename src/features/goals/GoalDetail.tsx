@@ -138,15 +138,15 @@ export default function GoalDetail() {
       <Screen
         title={goal.title}
         onBack={goBack}
-        backLabel={backLabel ?? 'Back'}
+        backLabel={backLabel ?? 'back'}
         right={
           <button
             type="button"
             aria-label="Edit goal"
             onClick={() => setEditorOpen(true)}
-            className="rounded-full bg-surface p-2 text-ink-dim"
+            className="key flex h-9 w-9 items-center justify-center text-ink"
           >
-            <Icon name="pencil" size={17} />
+            <Icon name="pencil" size={15} />
           </button>
         }
       >
@@ -159,29 +159,32 @@ export default function GoalDetail() {
               {goal.description && <p className="text-[14px] text-ink-dim">{goal.description}</p>}
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {goal.archivedAt != null && (
-                  <span className="rounded-full bg-surface2 px-2.5 py-1 text-[12px] font-semibold text-ink-dim">
-                    Archived
+                  <span className="rounded-[5px] bg-surface2 px-2 py-1 text-[11px] font-bold text-ink-dim">
+                    archived
                   </span>
                 )}
                 {goal.completedAt != null && (
-                  <span className="rounded-full bg-good-soft px-2.5 py-1 text-[12px] font-semibold text-good">
-                    Completed {format(goal.completedAt, 'MMM d, yyyy')}
+                  <span className="flex items-center gap-1.5 rounded-[5px] bg-good-soft px-2 py-1 text-[11px] font-bold text-good">
+                    <span className="led led-good" />
+                    completed {format(goal.completedAt, 'MMM d yyyy').toLowerCase()}
                   </span>
                 )}
                 {goal.targetDate && (
-                  <span className="rounded-full bg-surface2 px-2.5 py-1 text-[12px] font-medium text-ink-dim">
-                    Target: {format(fromDateStr(goal.targetDate), 'MMM d, yyyy')}
+                  <span className="rounded-[5px] bg-surface2 px-2 py-1 text-[11px] font-bold text-ink-dim">
+                    target: {format(fromDateStr(goal.targetDate), 'MMM d yyyy').toLowerCase()}
                   </span>
                 )}
               </div>
             </div>
           )}
 
-          <div className="rounded-2xl bg-surface p-4">
+          <div className="module p-4">
             <div className="flex items-baseline justify-between">
-              <span className="text-[13px] font-semibold text-ink-dim uppercase">Progress</span>
+              <span className="text-[11px] font-bold tracking-[0.1em] text-ink-dim">
+                progress
+              </span>
               {goal.metric && (
-                <span className="text-[13px] text-ink-dim">
+                <span className="text-[12px] font-semibold text-ink-dim">
                   {latest?.value ?? goal.metric.startValue ?? '—'}
                   {goal.metric.targetValue != null && ` / ${goal.metric.targetValue}`} {unit}
                 </span>
@@ -196,16 +199,16 @@ export default function GoalDetail() {
             <button
               type="button"
               onClick={() => setCheckInOpen(true)}
-              className="mt-3.5 w-full rounded-xl bg-accent py-2.5 text-[15px] font-semibold text-white"
+              className="key key-primary mt-3.5 w-full py-2.5 text-[14px] font-bold"
             >
-              Check In
+              check in
             </button>
           </div>
 
           {valuedCheckIns.length > 0 && (
             <section>
-              <SectionLabel>Over time</SectionLabel>
-              <div className="rounded-2xl bg-surface p-3 pt-4">
+              <SectionLabel index="01">over time</SectionLabel>
+              <div className="module p-3 pt-4">
                 <Suspense fallback={<div className="h-[210px]" />}>
                   <ProgressChart
                     checkIns={valuedCheckIns}
@@ -220,7 +223,7 @@ export default function GoalDetail() {
 
           {showCheckpoints && (
             <section>
-              <SectionLabel>Checkpoints</SectionLabel>
+              <SectionLabel index="02">checkpoints</SectionLabel>
               <Group>
                 {sortedCheckpoints.map((cp) => (
                   <div key={cp.id} className="flex items-center gap-3 px-4 py-3">
@@ -238,8 +241,9 @@ export default function GoalDetail() {
                         {checkpointLabel(cp, unit)}
                       </p>
                       {cp.achievedAt != null && (
-                        <p className="text-[12px] text-good">
-                          Reached {format(cp.achievedAt, 'MMM d, yyyy')}
+                        <p className="flex items-center gap-1.5 text-[11px] font-semibold text-good">
+                          <span className="led led-good" />
+                          reached {format(cp.achievedAt, 'MMM d yyyy').toLowerCase()}
                         </p>
                       )}
                     </div>
@@ -264,31 +268,31 @@ export default function GoalDetail() {
                       type="number"
                       step="any"
                       inputMode="decimal"
-                      placeholder={`Milestone value (${unit})`}
-                      className="min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-ink-dim/60"
+                      placeholder={`milestone value (${unit})`}
+                      className="min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-ink-dim/60"
                     />
                     <button
                       type="button"
                       aria-label="Add checkpoint"
                       disabled={!canAddCp}
                       onClick={() => void addCp()}
-                      className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-white disabled:opacity-35"
+                      className="key key-primary flex h-8 w-8 items-center justify-center !rounded-full"
                     >
-                      <Icon name="plus" size={17} strokeWidth={2.5} />
+                      <Icon name="plus" size={15} strokeWidth={2.5} />
                     </button>
                   </div>
                 )}
               </Group>
               {goal.metric && (
-                <p className="mt-1.5 px-2 text-[12px] text-ink-dim">
-                  Checkpoints are marked reached automatically when a check-in crosses them.
+                <p className="mt-1.5 px-1 text-[11px] text-ink-dim">
+                  checkpoints are marked reached automatically when a check-in crosses them
                 </p>
               )}
             </section>
           )}
 
           <section>
-            <SectionLabel>Sub-goals</SectionLabel>
+            <SectionLabel index="03">sub-goals</SectionLabel>
             <Group>
               {(subGoals ?? []).map((sub) => {
                 const subPercent = subGoalData?.get(sub.id) ?? null
@@ -315,16 +319,16 @@ export default function GoalDetail() {
               <button
                 type="button"
                 onClick={() => setSubGoalEditorOpen(true)}
-                className="w-full px-4 py-3 text-left text-[15px] font-semibold text-accent"
+                className="w-full px-4 py-3 text-left text-[14px] font-bold text-accent"
               >
-                + Add sub-goal
+                + add sub-goal
               </button>
             </Group>
           </section>
 
           {(tasks ?? []).filter((t) => !t.archivedAt).length > 0 && (
             <section>
-              <SectionLabel>Linked tasks</SectionLabel>
+              <SectionLabel index="04">linked tasks</SectionLabel>
               <Group>
                 {(tasks ?? [])
                   .filter((t) => !t.archivedAt)
@@ -338,15 +342,15 @@ export default function GoalDetail() {
                     />
                   ))}
               </Group>
-              <p className="mt-1.5 px-2 text-[12px] text-ink-dim">
-                Bars show completions per week over the last {CONSISTENCY_WEEKS} weeks.
+              <p className="mt-1.5 px-1 text-[11px] text-ink-dim">
+                bars show completions per week over the last {CONSISTENCY_WEEKS} weeks
               </p>
             </section>
           )}
 
           {(checkIns ?? []).length > 0 && (
             <section>
-              <SectionLabel>Check-in history</SectionLabel>
+              <SectionLabel index="05">check-in history</SectionLabel>
               <Group>
                 {[...(checkIns ?? [])].reverse().map((ci) => {
                   const hitCheckpoints = (checkpoints ?? []).filter(
@@ -355,8 +359,8 @@ export default function GoalDetail() {
                   return (
                     <div key={ci.id} className="flex items-start gap-3 px-4 py-3">
                       <div className="min-w-0 flex-1">
-                        <p className="text-[15px] font-medium">
-                          {ci.value != null ? `${ci.value} ${unit}` : ci.notes || 'Check-in'}
+                        <p className="text-[15px] font-semibold">
+                          {ci.value != null ? `${ci.value} ${unit}` : ci.notes || 'check-in'}
                         </p>
                         {ci.value != null && ci.notes && (
                           <p className="mt-0.5 text-[13px] text-ink-dim">{ci.notes}</p>

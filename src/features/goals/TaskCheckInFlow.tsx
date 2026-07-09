@@ -34,7 +34,7 @@ export function TaskCheckInFlow({ task, onClose }: { task: Task; onClose: () => 
   if (linked.length === 0) return null
 
   return (
-    <Sheet title="Check in for which goal?" onClose={onClose}>
+    <Sheet title="check in for which goal?" onClose={onClose}>
       <Group>
         {linked.map((g) => (
           <button
@@ -44,16 +44,16 @@ export function TaskCheckInFlow({ task, onClose }: { task: Task; onClose: () => 
             className="flex min-h-13 w-full items-center gap-3 px-4 py-3 text-left"
           >
             <span
-              className="h-3 w-3 shrink-0 rounded-full"
+              className="h-3 w-3 shrink-0 rounded-full border border-edge/60"
               style={{ background: g.color ?? 'var(--accent)' }}
             />
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-[16px] font-medium">{g.title}</span>
+              <span className="block truncate text-[15px] font-semibold">{g.title}</span>
               {g.metric && (
-                <span className="text-[12px] text-ink-dim">Record {g.metric.unit}</span>
+                <span className="text-[12px] text-ink-dim">record {g.metric.unit}</span>
               )}
             </span>
-            <Icon name="chevron-right" size={16} className="text-ink-dim/60" />
+            <Icon name="chevron-right" size={15} className="text-ink-dim/60" />
           </button>
         ))}
       </Group>

@@ -86,7 +86,7 @@ export function ProgressChart({
             stroke={good}
             strokeDasharray="5 4"
             strokeWidth={1.5}
-            label={{ value: 'Target', fontSize: 10, fill: inkDim, position: 'insideTopRight' }}
+            label={{ value: 'target', fontSize: 10, fill: inkDim, position: 'insideTopRight' }}
           />
         )}
         {markedCheckpoints.map((cp) => (

@@ -1,16 +1,16 @@
 import { Icon } from './Icon'
 
-/** Palette tuned to stay legible on both light and dark surfaces. */
+/** Hardware-ish palette: signal colors that read on ivory and charcoal. */
 export const PRESET_COLORS = [
-  '#ef4444', // red
-  '#f97316', // orange
-  '#f59e0b', // amber
-  '#10b981', // green
-  '#14b8a6', // teal
-  '#3b82f6', // blue
-  '#6366f1', // indigo
-  '#a855f7', // purple
-  '#ec4899', // pink
+  '#d92b21', // red
+  '#ff4d00', // signal orange
+  '#eab000', // yellow
+  '#0f9d58', // green
+  '#00a3a3', // teal
+  '#0055d4', // cobalt
+  '#5a4fe0', // violet
+  '#b03fd4', // magenta
+  '#e0559a', // pink
 ]
 
 export const PRESET_EMOJI = [
@@ -66,7 +66,7 @@ export function EmojiPicker({
         type="button"
         aria-label="No icon"
         onClick={() => onChange(undefined)}
-        className={`flex h-9 w-9 items-center justify-center rounded-xl bg-surface2 text-ink-dim ${
+        className={`flex h-9 w-9 items-center justify-center rounded-[8px] border border-edge/40 bg-surface2 text-ink-dim ${
           value == null ? 'ring-2 ring-accent' : ''
         }`}
       >
@@ -77,7 +77,7 @@ export function EmojiPicker({
           key={e}
           type="button"
           onClick={() => onChange(e)}
-          className={`flex h-9 w-9 items-center justify-center rounded-xl text-[19px] ${
+          className={`flex h-9 w-9 items-center justify-center rounded-[8px] border border-edge/40 text-[19px] ${
             value === e ? 'bg-accent-soft ring-2 ring-accent' : 'bg-surface2'
           }`}
         >

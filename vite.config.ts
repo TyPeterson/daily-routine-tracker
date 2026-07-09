@@ -20,13 +20,13 @@ export default defineConfig({
       registerType: 'prompt',
       includeAssets: ['favicon.svg', 'apple-touch-icon-180x180.png'],
       manifest: {
-        name: 'Daily Routine Tracker',
-        short_name: 'Routine',
-        description: 'Personal daily routine, task, and goal tracker',
+        name: 'routine',
+        short_name: 'routine',
+        description: 'personal daily routine, task, and goal tracker',
         display: 'standalone',
         orientation: 'portrait',
-        theme_color: '#4f46e5',
-        background_color: '#ffffff',
+        theme_color: '#e9e7e0',
+        background_color: '#e9e7e0',
         icons: [
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
           { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },

@@ -32,44 +32,45 @@ export default function TodayView() {
   return (
     <div className="h-full" {...swipe}>
       <Screen
-        title={isToday ? 'Today' : format(day, 'EEEE')}
-        subtitle={format(day, 'MMMM d, yyyy')}
+        title={isToday ? 'today' : format(day, 'EEEE').toLowerCase()}
+        subtitle={format(day, 'MMM d yyyy')}
         right={
           <>
             {!isToday && (
               <button
                 type="button"
                 onClick={() => setDate(todayStr())}
-                className="mr-1 rounded-full bg-accent-soft px-3 py-1.5 text-[13px] font-semibold text-accent"
+                className="key mr-1 px-3 py-1.5 text-[12px] font-bold text-accent"
               >
-                Today
+                today
               </button>
             )}
             <button
               type="button"
               aria-label="Previous day"
               onClick={() => setDate((d) => addDaysStr(d, -1))}
-              className="rounded-full bg-surface p-2 text-ink-dim"
+              className="key flex h-9 w-9 items-center justify-center text-ink"
             >
-              <Icon name="chevron-left" size={18} strokeWidth={2.5} />
+              <Icon name="chevron-left" size={16} strokeWidth={2.5} />
             </button>
             <button
               type="button"
               aria-label="Next day"
               onClick={() => setDate((d) => addDaysStr(d, 1))}
-              className="rounded-full bg-surface p-2 text-ink-dim"
+              className="key flex h-9 w-9 items-center justify-center text-ink"
             >
-              <Icon name="chevron-right" size={18} strokeWidth={2.5} />
+              <Icon name="chevron-right" size={16} strokeWidth={2.5} />
             </button>
           </>
         }
       >
         {dayTasks && dayTasks.length > 0 && (
           <>
-            <p className="mb-2 px-2 text-[13px] font-medium text-ink-dim">
-              {remaining === 0 ? 'All done — nice work!' : `${remaining} remaining`}
+            <p className="mb-2 px-1 text-[11px] font-bold tracking-[0.1em] text-ink-dim">
+              <span className="text-accent">{String(remaining).padStart(2, '0')}</span>{' '}
+              {remaining === 0 ? 'remaining — all done' : 'remaining'}
             </p>
-            <div className="divide-y divide-line rounded-2xl bg-surface">
+            <div className="module divide-y divide-line overflow-hidden">
               {dayTasks.map(({ task, completed }) => (
                 <TaskRow
                   key={task.id}
@@ -87,8 +88,8 @@ export default function TodayView() {
         {dayTasks && dayTasks.length === 0 && (
           <EmptyState
             icon="sun"
-            title="Nothing scheduled"
-            hint="Tap + to add a task for this day."
+            title="nothing scheduled"
+            hint="tap + to add a task for this day"
           />
         )}
       </Screen>

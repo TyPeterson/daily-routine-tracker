@@ -114,28 +114,28 @@ export function GoalEditorSheet({
   }
 
   return (
-    <Sheet title={goal ? 'Edit Goal' : 'New Goal'} onClose={onClose}>
+    <Sheet title={goal ? 'edit goal' : 'new goal'} onClose={onClose}>
       <div className="space-y-5">
         <Group>
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Goal name"
+            placeholder="goal name"
             autoFocus={!goal}
-            className="w-full bg-transparent px-4 py-3 text-[17px] font-medium outline-none placeholder:text-ink-dim/70"
+            className="w-full bg-transparent px-4 py-3 text-[16px] font-semibold outline-none placeholder:text-ink-dim/70"
           />
           <ColorPicker value={color} onChange={setColor} />
         </Group>
 
         <section>
-          <SectionLabel>Measure</SectionLabel>
+          <SectionLabel index="01">measure</SectionLabel>
           <Group>
-            <Row label="Track a number">
+            <Row label="track a number">
               <Toggle on={hasMetric} onChange={setHasMetric} />
             </Row>
             {hasMetric && (
               <>
-                <Row label="Unit">
+                <Row label="unit">
                   <input
                     value={unit}
                     onChange={(e) => setUnit(e.target.value)}
@@ -148,12 +148,12 @@ export function GoalEditorSheet({
                     value={direction}
                     onChange={setDirection}
                     options={[
-                      { value: 'increase', label: 'Increase ↑' },
-                      { value: 'decrease', label: 'Decrease ↓' },
+                      { value: 'increase', label: 'increase ↑' },
+                      { value: 'decrease', label: 'decrease ↓' },
                     ]}
                   />
                 </div>
-                <Row label="Starting at">
+                <Row label="starting at">
                   <input
                     type="number"
                     step="any"
@@ -161,10 +161,10 @@ export function GoalEditorSheet({
                     value={startValue}
                     onChange={(e) => setStartValue(e.target.value)}
                     placeholder="optional"
-                    className="w-28 rounded-lg bg-surface2 px-2 py-1.5 text-right outline-none placeholder:text-ink-dim/60"
+                    className="w-28 rounded-[7px] border border-edge/50 bg-surface2 px-2 py-1.5 text-right outline-none placeholder:text-ink-dim/60"
                   />
                 </Row>
-                <Row label="Target">
+                <Row label="target">
                   <input
                     type="number"
                     step="any"
@@ -172,7 +172,7 @@ export function GoalEditorSheet({
                     value={targetValue}
                     onChange={(e) => setTargetValue(e.target.value)}
                     placeholder="optional"
-                    className="w-28 rounded-lg bg-surface2 px-2 py-1.5 text-right outline-none placeholder:text-ink-dim/60"
+                    className="w-28 rounded-[7px] border border-edge/50 bg-surface2 px-2 py-1.5 text-right outline-none placeholder:text-ink-dim/60"
                   />
                 </Row>
               </>
@@ -181,28 +181,28 @@ export function GoalEditorSheet({
         </section>
 
         <section>
-          <SectionLabel>Details</SectionLabel>
+          <SectionLabel index="02">details</SectionLabel>
           <Group>
-            <Row label="Target date">
+            <Row label="target date">
               <span className="flex items-center gap-3">
                 {hasTargetDate && (
                   <input
                     type="date"
                     value={targetDate}
                     onChange={(e) => e.target.value && setTargetDate(e.target.value)}
-                    className="text-right font-medium text-accent outline-none"
+                    className="text-right font-semibold text-accent outline-none"
                   />
                 )}
                 <Toggle on={hasTargetDate} onChange={setHasTargetDate} />
               </span>
             </Row>
-            <Row label="Parent goal">
+            <Row label="parent goal">
               <select
                 value={parentId}
                 onChange={(e) => setParentId(e.target.value)}
-                className="max-w-44 bg-transparent text-right font-medium text-accent outline-none"
+                className="max-w-44 bg-transparent text-right font-semibold text-accent outline-none"
               >
-                <option value="">None</option>
+                <option value="">none</option>
                 {parentOptions.map((g) => (
                   <option key={g.id} value={g.id}>
                     {g.title}
@@ -210,37 +210,37 @@ export function GoalEditorSheet({
                 ))}
               </select>
             </Row>
-            <Row label="Completed">
+            <Row label="completed">
               <Toggle on={completed} onChange={setCompleted} />
             </Row>
           </Group>
         </section>
 
-        <div className="space-y-2 pt-1">
+        <div className="space-y-2.5 pt-1">
           <button
             type="button"
             disabled={!canSave}
             onClick={() => void save()}
-            className="w-full rounded-2xl bg-accent py-3.5 text-[16px] font-semibold text-white transition-opacity disabled:opacity-40"
+            className="key key-primary w-full py-3.5 text-[15px] font-bold"
           >
-            {goal ? 'Save Changes' : 'Add Goal'}
+            {goal ? 'save changes' : 'add goal'}
           </button>
           {goal && (
             <button
               type="button"
               onClick={() => void toggleArchive()}
-              className="w-full rounded-2xl bg-surface py-3 text-[15px] font-medium text-ink-dim"
+              className="key w-full py-3 text-[14px] font-bold text-ink-dim"
             >
-              {goal.archivedAt != null ? 'Unarchive Goal' : 'Archive Goal'}
+              {goal.archivedAt != null ? 'unarchive goal' : 'archive goal'}
             </button>
           )}
           {goal && (
             <button
               type="button"
               onClick={() => void remove()}
-              className="w-full rounded-2xl py-3 text-[15px] font-medium text-danger"
+              className="w-full py-3 text-[14px] font-bold text-danger"
             >
-              Delete Goal
+              delete goal
             </button>
           )}
         </div>

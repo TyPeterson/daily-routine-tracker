@@ -76,8 +76,8 @@ function DayCell({
       }`}
     >
       <span
-        className={`mx-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[13px] ${
-          isToday ? 'bg-accent font-bold text-white' : 'font-medium'
+        className={`mx-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[12px] ${
+          isToday ? 'border border-edge bg-accent font-bold text-on-accent' : 'font-semibold'
         }`}
       >
         {day.getDate()}
@@ -88,7 +88,7 @@ function DayCell({
           return (
             <span
               key={task.id}
-              className={`flex shrink-0 items-center gap-[2px] truncate rounded-[4px] px-[3px] py-[1.5px] text-[9px] leading-[1.25] font-semibold ${
+              className={`flex shrink-0 items-center gap-[2px] truncate rounded-[3px] px-[3px] py-[1.5px] text-[9px] leading-[1.25] font-bold ${
                 completed ? 'line-through opacity-40' : ''
               }`}
               style={{
@@ -133,43 +133,45 @@ export default function CalendarView() {
       <header className="pt-safe px-5 pb-2">
         <div className="flex items-end justify-between gap-3 pt-3">
           <div className="min-w-0">
-            <p className="text-[13px] font-semibold text-ink-dim">{format(month, 'yyyy')}</p>
-            <h1 className="truncate text-[28px] leading-tight font-bold">
-              {format(month, 'MMMM')}
+            <p className="text-[11px] font-bold tracking-[0.14em] text-ink-dim uppercase">
+              {format(month, 'yyyy')}
+            </p>
+            <h1 className="truncate text-[27px] leading-tight font-bold tracking-tight">
+              {format(month, 'MMMM').toLowerCase()}
             </h1>
           </div>
-          <div className="flex shrink-0 items-center gap-1.5 pb-1">
+          <div className="flex shrink-0 items-center gap-2 pb-1">
             {!isCurrentMonth && (
               <button
                 type="button"
                 onClick={() => setMonth(startOfMonth(new Date()))}
-                className="mr-1 rounded-full bg-accent-soft px-3 py-1.5 text-[13px] font-semibold text-accent"
+                className="key mr-1 px-3 py-1.5 text-[12px] font-bold text-accent"
               >
-                Today
+                today
               </button>
             )}
             <button
               type="button"
               aria-label="Previous month"
               onClick={() => setMonth((m) => addMonths(m, -1))}
-              className="rounded-full bg-surface p-2 text-ink-dim"
+              className="key flex h-9 w-9 items-center justify-center text-ink"
             >
-              <Icon name="chevron-left" size={18} strokeWidth={2.5} />
+              <Icon name="chevron-left" size={16} strokeWidth={2.5} />
             </button>
             <button
               type="button"
               aria-label="Next month"
               onClick={() => setMonth((m) => addMonths(m, 1))}
-              className="rounded-full bg-surface p-2 text-ink-dim"
+              className="key flex h-9 w-9 items-center justify-center text-ink"
             >
-              <Icon name="chevron-right" size={18} strokeWidth={2.5} />
+              <Icon name="chevron-right" size={16} strokeWidth={2.5} />
             </button>
           </div>
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col px-2 pb-2">
-        <div className="grid shrink-0 grid-cols-7 text-center text-[11px] font-semibold text-ink-dim">
+      <div className="flex min-h-0 flex-1 flex-col px-3 pb-3">
+        <div className="grid shrink-0 grid-cols-7 text-center text-[10px] font-bold tracking-[0.1em] text-ink-dim">
           {WEEKDAY_HEADER.map((d, i) => (
             <span key={i} className="py-1.5">
               {d}
@@ -177,7 +179,7 @@ export default function CalendarView() {
           ))}
         </div>
         <div
-          className="grid min-h-0 flex-1 grid-cols-7 gap-[3px] rounded-2xl bg-surface p-1.5"
+          className="module grid min-h-0 flex-1 grid-cols-7 gap-[3px] p-1.5"
           style={{ gridTemplateRows: `repeat(${weeks}, minmax(0, 1fr))` }}
         >
           {days.map((d) => {

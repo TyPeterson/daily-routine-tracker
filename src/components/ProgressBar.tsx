@@ -11,10 +11,12 @@ export function ProgressBar({
   const clamped = percent == null ? 0 : Math.min(100, Math.max(0, percent))
   const done = clamped >= 100
   return (
-    <div className={`h-2 overflow-hidden rounded-full bg-surface2 ${className ?? ''}`}>
+    <div
+      className={`h-[10px] overflow-hidden rounded-[4px] border border-edge/60 bg-surface2 ${className ?? ''}`}
+    >
       {percent != null && (
         <div
-          className={`h-full rounded-full transition-[width] duration-300 ${
+          className={`h-full transition-[width] duration-300 ${
             done ? 'bg-good' : color ? '' : 'bg-accent'
           }`}
           style={{ width: `${clamped}%`, ...(color && !done ? { background: color } : {}) }}

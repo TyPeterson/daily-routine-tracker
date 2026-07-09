@@ -5,7 +5,7 @@ import { describeRecurrence } from '../../domain/recurrence'
 
 const tint = (hex: string) => `${hex}26` // ~15% alpha for #rrggbb
 
-/** One checklist row: tap the circle to toggle done, tap the rest to edit. */
+/** One checklist row: tap the key to toggle done, tap the rest to edit. */
 export function TaskRow({
   task,
   completed,
@@ -36,11 +36,11 @@ export function TaskRow({
       >
         <span
           className={`flex h-[26px] w-[26px] items-center justify-center rounded-full border-2 transition-colors ${
-            completed ? 'border-good bg-good text-white' : 'text-transparent'
+            completed ? 'border-edge bg-accent text-on-accent' : 'text-transparent'
           }`}
-          style={!completed ? { borderColor: task.color ?? 'var(--line)' } : undefined}
+          style={!completed ? { borderColor: task.color ?? 'var(--ink-dim)' } : undefined}
         >
-          <Icon name="check" size={15} strokeWidth={3.5} />
+          <Icon name="check" size={14} strokeWidth={3.5} />
         </span>
       </button>
       <button
@@ -50,16 +50,16 @@ export function TaskRow({
       >
         <span className="min-w-0">
           <span
-            className={`block truncate text-[16px] font-medium ${
+            className={`block truncate text-[15px] font-semibold ${
               completed ? 'text-ink-dim line-through' : ''
             }`}
           >
             {task.icon && <span className="mr-1.5">{task.icon}</span>}
             {task.title}
           </span>
-          <span className="mt-0.5 flex items-center gap-x-2 text-[12px] text-ink-dim">
+          <span className="mt-0.5 flex items-center gap-x-2 text-[11px] text-ink-dim">
             {task.timeOfDay && (
-              <span className="font-semibold text-accent">{formatTimeOfDay(task.timeOfDay)}</span>
+              <span className="font-bold text-accent">{formatTimeOfDay(task.timeOfDay)}</span>
             )}
             <span className="shrink-0">{describeRecurrence(task.recurrence)}</span>
             {task.notes && <span className="truncate">{task.notes}</span>}
@@ -69,7 +69,7 @@ export function TaskRow({
               {linkedGoals.map((g) => (
                 <span
                   key={g.id}
-                  className="rounded-full px-2 py-0.5 text-[11px] font-medium"
+                  className="rounded-[5px] px-1.5 py-0.5 text-[10px] font-bold"
                   style={
                     g.color
                       ? { background: tint(g.color), color: g.color }
@@ -82,16 +82,16 @@ export function TaskRow({
             </span>
           )}
         </span>
-        <Icon name="chevron-right" size={17} className="shrink-0 text-ink-dim/60" />
+        <Icon name="chevron-right" size={15} className="shrink-0 text-ink-dim/60" />
       </button>
       {completed && linkedGoals.length > 0 && onCheckIn && (
         <button
           type="button"
           aria-label="Add a check-in"
           onClick={onCheckIn}
-          className="mr-3 flex items-center self-center rounded-full bg-accent-soft p-2.5 text-accent"
+          className="key mr-3 flex h-9 w-9 items-center justify-center self-center !rounded-full text-accent"
         >
-          <Icon name="flag" size={16} strokeWidth={2.5} />
+          <Icon name="flag" size={15} strokeWidth={2.5} />
         </button>
       )}
     </div>

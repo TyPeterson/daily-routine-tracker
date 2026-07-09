@@ -95,40 +95,40 @@ export function TaskEditorSheet({
     recType === 'daily' ? 'day' : recType === 'weekly' ? 'week' : 'month'
 
   return (
-    <Sheet title={task ? 'Edit Task' : 'New Task'} onClose={onClose}>
+    <Sheet title={task ? 'edit task' : 'new task'} onClose={onClose}>
       <div className="space-y-5">
         <Group>
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Task name"
+            placeholder="task name"
             autoFocus={!task}
-            className="w-full bg-transparent px-4 py-3 text-[17px] font-medium outline-none placeholder:text-ink-dim/70"
+            className="w-full bg-transparent px-4 py-3 text-[16px] font-semibold outline-none placeholder:text-ink-dim/70"
           />
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Notes"
+            placeholder="notes"
             rows={2}
-            className="w-full resize-none bg-transparent px-4 py-3 text-[15px] outline-none placeholder:text-ink-dim/70"
+            className="w-full resize-none bg-transparent px-4 py-3 text-[14px] outline-none placeholder:text-ink-dim/70"
           />
         </Group>
 
         <section>
-          <SectionLabel>Repeats</SectionLabel>
+          <SectionLabel index="01">repeats</SectionLabel>
           <Segmented
             value={recType}
             onChange={setRecType}
             options={[
-              { value: 'none', label: 'Once' },
-              { value: 'daily', label: 'Daily' },
-              { value: 'weekly', label: 'Weekly' },
-              { value: 'monthly', label: 'Monthly' },
+              { value: 'none', label: 'once' },
+              { value: 'daily', label: 'daily' },
+              { value: 'weekly', label: 'weekly' },
+              { value: 'monthly', label: 'monthly' },
             ]}
           />
           {repeats && (
             <Group className="mt-3">
-              <Row label="Every">
+              <Row label="every">
                 <span className="flex items-center gap-2">
                   <NumberField value={interval} onCommit={setIntervalN} min={1} max={365} />
                   <span className="text-ink-dim">
@@ -143,8 +143,10 @@ export function TaskEditorSheet({
                       key={i}
                       type="button"
                       onClick={() => toggleWeekday(i)}
-                      className={`h-10 w-10 rounded-full text-[14px] font-semibold transition-colors ${
-                        weekdays.includes(i) ? 'bg-accent text-white' : 'bg-surface2 text-ink-dim'
+                      className={`h-10 w-10 rounded-[8px] border text-[13px] font-bold transition-colors ${
+                        weekdays.includes(i)
+                          ? 'border-edge bg-accent text-on-accent'
+                          : 'border-edge/40 bg-surface2 text-ink-dim'
                       }`}
                     >
                       {label}
@@ -153,7 +155,7 @@ export function TaskEditorSheet({
                 </div>
               )}
               {recType === 'monthly' && (
-                <Row label="On day">
+                <Row label="on day">
                   <NumberField value={dayOfMonth} onCommit={setDayOfMonth} min={1} max={31} />
                 </Row>
               )}
@@ -162,24 +164,24 @@ export function TaskEditorSheet({
         </section>
 
         <section>
-          <SectionLabel>Schedule</SectionLabel>
+          <SectionLabel index="02">schedule</SectionLabel>
           <Group>
-            <Row label={repeats ? 'Starts' : 'Date'}>
+            <Row label={repeats ? 'starts' : 'date'}>
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => e.target.value && setStartDate(e.target.value)}
-                className="text-right font-medium text-accent outline-none"
+                className="text-right font-semibold text-accent outline-none"
               />
             </Row>
-            <Row label="Time of day">
+            <Row label="time of day">
               <span className="flex items-center gap-3">
                 {hasTime && <TimeSelect value={timeOfDay} onChange={setTimeOfDay} />}
                 <Toggle on={hasTime} onChange={setHasTime} />
               </span>
             </Row>
             {repeats && (
-              <Row label="End repeat">
+              <Row label="end repeat">
                 <span className="flex items-center gap-3">
                   {hasEnd && (
                     <input
@@ -187,7 +189,7 @@ export function TaskEditorSheet({
                       value={endDate}
                       min={startDate}
                       onChange={(e) => e.target.value && setEndDate(e.target.value)}
-                      className="text-right font-medium text-accent outline-none"
+                      className="text-right font-semibold text-accent outline-none"
                     />
                   )}
                   <Toggle on={hasEnd} onChange={setHasEnd} />
@@ -198,7 +200,7 @@ export function TaskEditorSheet({
         </section>
 
         <section>
-          <SectionLabel>Appearance</SectionLabel>
+          <SectionLabel index="03">appearance</SectionLabel>
           <Group>
             <EmojiPicker value={icon} onChange={setIcon} />
             <ColorPicker value={color} onChange={setColor} />
@@ -206,7 +208,7 @@ export function TaskEditorSheet({
         </section>
 
         <section>
-          <SectionLabel>Linked goals</SectionLabel>
+          <SectionLabel index="04">linked goals</SectionLabel>
           {goals && goals.length > 0 ? (
             <Group>
               {goals.map((g) => {
@@ -218,41 +220,43 @@ export function TaskEditorSheet({
                     onClick={() => toggleGoal(g.id)}
                     className="flex min-h-12 w-full items-center justify-between gap-3 px-4 py-2 text-left"
                   >
-                    <span className="text-[16px]">{g.title}</span>
+                    <span className="text-[15px]">{g.title}</span>
                     <span
-                      className={`flex h-6 w-6 items-center justify-center rounded-full ${
-                        selected ? 'bg-accent text-white' : 'bg-surface2 text-transparent'
+                      className={`flex h-6 w-6 items-center justify-center rounded-full border ${
+                        selected
+                          ? 'border-edge bg-accent text-on-accent'
+                          : 'border-edge/40 bg-surface2 text-transparent'
                       }`}
                     >
-                      <Icon name="check" size={14} strokeWidth={3} />
+                      <Icon name="check" size={13} strokeWidth={3} />
                     </span>
                   </button>
                 )
               })}
             </Group>
           ) : (
-            <p className="px-2 text-[14px] text-ink-dim">
-              Create goals in the Goals tab, then link tasks to them here.
+            <p className="px-2 text-[13px] text-ink-dim">
+              create goals in the goals tab, then link tasks to them here
             </p>
           )}
         </section>
 
-        <div className="space-y-2 pt-1">
+        <div className="space-y-2.5 pt-1">
           <button
             type="button"
             disabled={!canSave}
             onClick={() => void save()}
-            className="w-full rounded-2xl bg-accent py-3.5 text-[16px] font-semibold text-white transition-opacity disabled:opacity-40"
+            className="key key-primary w-full py-3.5 text-[15px] font-bold"
           >
-            {task ? 'Save Changes' : 'Add Task'}
+            {task ? 'save changes' : 'add task'}
           </button>
           {task && (
             <button
               type="button"
               onClick={() => void remove()}
-              className="w-full rounded-2xl py-3 text-[15px] font-medium text-danger"
+              className="w-full py-3 text-[14px] font-bold text-danger"
             >
-              Delete Task
+              delete task
             </button>
           )}
         </div>

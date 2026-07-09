@@ -41,19 +41,19 @@ export function Sheet({
         style={{ transform: keyboardInset ? `translateY(-${keyboardInset}px)` : undefined }}
       >
         <div
-          className="animate-sheet-up flex flex-col rounded-t-3xl bg-canvas shadow-2xl"
+          className="animate-sheet-up flex flex-col rounded-t-[14px] border-x-[1.5px] border-t-[1.5px] border-edge bg-canvas"
           style={{ maxHeight: Math.round(viewportHeight * 0.94) }}
         >
-          <div className="mx-auto mt-2.5 h-1 w-9 shrink-0 rounded-full bg-ink-dim/40" />
+          <div className="mx-auto mt-2.5 h-[3px] w-10 shrink-0 rounded-sm bg-ink-dim/50" />
           <div className="flex shrink-0 items-center justify-between px-5 py-3">
-            <h2 className="text-[19px] font-bold">{title}</h2>
+            <h2 className="text-[17px] font-bold tracking-tight">{title}</h2>
             <button
               type="button"
               aria-label="Close"
               onClick={onClose}
-              className="rounded-full bg-surface2 p-1.5 text-ink-dim"
+              className="key flex h-8 w-8 items-center justify-center text-ink"
             >
-              <Icon name="x" size={18} strokeWidth={2.5} />
+              <Icon name="x" size={16} strokeWidth={2.5} />
             </button>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4">

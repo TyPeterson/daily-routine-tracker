@@ -38,7 +38,8 @@ export function NumberField({
       }}
       onBlur={() => setDraft(null)}
       className={
-        className ?? 'w-16 rounded-lg bg-surface2 px-2 py-1 text-center outline-none'
+        className ??
+        'w-16 rounded-[7px] border border-edge/50 bg-surface2 px-2 py-1 text-center font-semibold outline-none'
       }
     />
   )

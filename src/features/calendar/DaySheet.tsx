@@ -20,9 +20,9 @@ export function DaySheet({ date, onClose }: { date: DateStr; onClose: () => void
 
   return (
     <>
-      <Sheet title={format(fromDateStr(date), 'EEEE, MMMM d')} onClose={onClose}>
+      <Sheet title={format(fromDateStr(date), 'EEEE, MMM d').toLowerCase()} onClose={onClose}>
         {dayTasks && dayTasks.length > 0 ? (
-          <div className="divide-y divide-line rounded-2xl bg-surface">
+          <div className="module divide-y divide-line overflow-hidden">
             {dayTasks.map(({ task, completed }) => (
               <TaskRow
                 key={task.id}
@@ -36,14 +36,14 @@ export function DaySheet({ date, onClose }: { date: DateStr; onClose: () => void
             ))}
           </div>
         ) : (
-          <EmptyState icon="calendar" title="Nothing scheduled" />
+          <EmptyState icon="calendar" title="nothing scheduled" />
         )}
         <button
           type="button"
           onClick={() => setEditor({ open: true })}
-          className="mt-4 w-full rounded-2xl bg-accent-soft py-3 text-[15px] font-semibold text-accent"
+          className="key mt-4 w-full py-3 text-[14px] font-bold text-accent"
         >
-          + Add task on this day
+          + add task on this day
         </button>
       </Sheet>
       {editor.open && (

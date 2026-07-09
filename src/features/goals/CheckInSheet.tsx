@@ -48,11 +48,11 @@ export function CheckInSheet({ goalId, onClose }: { goalId: string; onClose: () 
   }
 
   return (
-    <Sheet title={`Check In — ${goal.title}`} onClose={onClose}>
+    <Sheet title={`check in — ${goal.title}`} onClose={onClose}>
       <div className="space-y-5">
         <Group>
           {goal.metric && (
-            <Row label={`Value (${goal.metric.unit})`}>
+            <Row label={`value (${goal.metric.unit})`}>
               <input
                 type="number"
                 step="any"
@@ -61,25 +61,25 @@ export function CheckInSheet({ goalId, onClose }: { goalId: string; onClose: () 
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
                 autoFocus
-                className="w-28 rounded-lg bg-surface2 px-2 py-1.5 text-right outline-none"
+                className="w-28 rounded-[7px] border border-edge/50 bg-surface2 px-2 py-1.5 text-right font-semibold outline-none"
               />
             </Row>
           )}
-          <Row label="Date">
+          <Row label="date">
             <input
               type="date"
               value={date}
               max={todayStr()}
               onChange={(e) => e.target.value && setDate(e.target.value)}
-              className="text-right font-medium text-accent outline-none"
+              className="text-right font-semibold text-accent outline-none"
             />
           </Row>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="How did it go?"
+            placeholder="how did it go?"
             rows={2}
-            className="w-full resize-none bg-transparent px-4 py-3 text-[15px] outline-none placeholder:text-ink-dim/70"
+            className="w-full resize-none bg-transparent px-4 py-3 text-[14px] outline-none placeholder:text-ink-dim/70"
           />
         </Group>
 
@@ -87,9 +87,9 @@ export function CheckInSheet({ goalId, onClose }: { goalId: string; onClose: () 
           type="button"
           disabled={!canSave}
           onClick={() => void save()}
-          className="w-full rounded-2xl bg-accent py-3.5 text-[16px] font-semibold text-white transition-opacity disabled:opacity-40"
+          className="key key-primary w-full py-3.5 text-[15px] font-bold"
         >
-          Save Check-In
+          save check-in
         </button>
       </div>
     </Sheet>

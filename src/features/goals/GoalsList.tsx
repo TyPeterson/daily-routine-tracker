@@ -45,7 +45,7 @@ export default function GoalsList() {
       (checkpoints ?? []).filter((c) => c.goalId === g.id),
     )
 
-  const openGoal = (id: string) => navigate(`/goals/${id}`, { state: { backLabel: 'Goals' } })
+  const openGoal = (id: string) => navigate(`/goals/${id}`, { state: { backLabel: 'goals' } })
 
   const doArchive = async (goal: Goal) => {
     const subCount = childrenOf(goal.id).length
@@ -65,12 +65,12 @@ export default function GoalsList() {
 
   return (
     <>
-      <Screen title="Goals">
+      <Screen title="goals" subtitle={`${topLevel.length} active`}>
         {goals && topLevel.length === 0 && archived.length === 0 && (
           <EmptyState
             icon="target"
-            title="No goals yet"
-            hint="Tap + to create your first goal, then link daily tasks to it."
+            title="no goals yet"
+            hint="tap + to create your first goal, then link daily tasks to it"
           />
         )}
         <div className="space-y-3">
@@ -87,19 +87,20 @@ export default function GoalsList() {
                 actions={[
                   {
                     icon: 'pencil',
-                    label: 'Edit',
-                    bg: 'bg-[#3b82f6]',
+                    label: 'edit',
+                    bg: 'bg-[#0055d4]',
                     onAct: () => setEditing(goal),
                   },
                   {
                     icon: 'archive',
-                    label: 'Archive',
-                    bg: 'bg-[#f59e0b]',
+                    label: 'archive',
+                    bg: 'bg-[#eab000]',
+                    fg: 'text-[#141414]',
                     onAct: () => void doArchive(goal),
                   },
                   {
                     icon: 'trash',
-                    label: 'Delete',
+                    label: 'delete',
                     bg: 'bg-danger',
                     onAct: () => void doDelete(goal),
                   },
@@ -110,13 +111,13 @@ export default function GoalsList() {
                   tabIndex={0}
                   onClick={() => openGoal(goal.id)}
                   onKeyDown={(e) => e.key === 'Enter' && openGoal(goal.id)}
-                  className="rounded-2xl bg-surface p-4 active:opacity-80"
+                  className="bg-surface p-4 active:opacity-80"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <h3 className="flex min-w-0 items-center gap-2 text-[17px] font-semibold">
+                    <h3 className="flex min-w-0 items-center gap-2 text-[16px] font-bold">
                       {goal.color && (
                         <span
-                          className="h-2.5 w-2.5 shrink-0 rounded-full"
+                          className="h-2.5 w-2.5 shrink-0 rounded-full border border-edge/60"
                           style={{ background: goal.color }}
                         />
                       )}
@@ -124,16 +125,17 @@ export default function GoalsList() {
                     </h3>
                     <div className="flex shrink-0 items-center gap-1.5">
                       {goal.completedAt != null && (
-                        <span className="rounded-full bg-good-soft px-2 py-0.5 text-[11px] font-semibold text-good">
-                          Done
+                        <span className="flex items-center gap-1.5 rounded-[5px] bg-good-soft px-1.5 py-0.5 text-[10px] font-bold text-good">
+                          <span className="led led-good" />
+                          done
                         </span>
                       )}
                       {goal.targetDate && goal.completedAt == null && (
-                        <span className="rounded-full bg-surface2 px-2 py-0.5 text-[11px] font-medium text-ink-dim">
-                          by {format(fromDateStr(goal.targetDate), 'MMM d, yyyy')}
+                        <span className="rounded-[5px] bg-surface2 px-1.5 py-0.5 text-[10px] font-bold text-ink-dim">
+                          by {format(fromDateStr(goal.targetDate), 'MMM d yyyy').toLowerCase()}
                         </span>
                       )}
-                      <Icon name="chevron-right" size={16} className="text-ink-dim/60" />
+                      <Icon name="chevron-right" size={15} className="text-ink-dim/60" />
                     </div>
                   </div>
                   <div className="mt-3 flex items-center gap-3">
@@ -179,12 +181,12 @@ export default function GoalsList() {
             <button
               type="button"
               onClick={() => setShowArchived((s) => !s)}
-              className="flex w-full items-center justify-center gap-1 py-1 text-[14px] font-semibold text-ink-dim"
+              className="flex w-full items-center justify-center gap-1 py-1 text-[12px] font-bold tracking-[0.1em] text-ink-dim"
             >
-              Archived ({archived.length})
+              archived ({archived.length})
               <Icon
                 name="chevron-right"
-                size={15}
+                size={13}
                 className={`transition-transform ${showArchived ? 'rotate-90' : ''}`}
               />
             </button>
@@ -197,16 +199,16 @@ export default function GoalsList() {
                       onClick={() => openGoal(goal.id)}
                       className="min-w-0 flex-1 text-left"
                     >
-                      <span className="block truncate text-[15px] font-medium text-ink-dim">
+                      <span className="block truncate text-[14px] font-semibold text-ink-dim">
                         {goal.title}
                       </span>
                     </button>
                     <button
                       type="button"
                       onClick={() => void unarchiveGoal(goal.id)}
-                      className="rounded-full bg-accent-soft px-3 py-1.5 text-[13px] font-semibold text-accent"
+                      className="key px-3 py-1.5 text-[12px] font-bold text-accent"
                     >
-                      Restore
+                      restore
                     </button>
                     <button
                       type="button"

@@ -25,7 +25,7 @@ export function TimeSelect({
   }
 
   const selectCls =
-    'appearance-none rounded-lg bg-surface2 px-2.5 py-1.5 text-center font-medium text-accent outline-none'
+    'appearance-none rounded-[7px] border border-edge/50 bg-surface2 px-2.5 py-1.5 text-center font-semibold text-accent outline-none'
 
   return (
     <span className="flex items-center gap-1.5">
