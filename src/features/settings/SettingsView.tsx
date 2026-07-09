@@ -99,8 +99,8 @@ export default function SettingsView() {
             </Row>
           </Group>
           <p className="mt-1.5 px-1 text-[11px] text-ink-dim">
-            all data lives only on this device. export a backup now and then in case you lose or
-            replace your phone.
+            all data lives only on this device. export a backup first if you re-add the app to
+            your home screen — re-adding wipes saved data.
           </p>
           <input
             ref={fileRef}
@@ -119,6 +119,9 @@ export default function SettingsView() {
           <SectionLabel index="03">app</SectionLabel>
           <Group>
             <Row label="version">
+              <span className="text-[14px] font-bold text-accent">v{__APP_VERSION__}</span>
+            </Row>
+            <Row label="updated">
               <span className="text-[13px] text-ink-dim">
                 {format(new Date(__BUILD_DATE__), 'MMM d, yyyy h:mm a').toLowerCase()}
               </span>
@@ -143,15 +146,6 @@ export default function SettingsView() {
           </Group>
         </section>
 
-        <section>
-          <SectionLabel index="04">install on iphone</SectionLabel>
-          <div className="module dots-bg p-4 text-[13px] leading-relaxed text-ink-dim">
-            open this site in <span className="font-bold text-ink">safari</span>, tap{' '}
-            <span className="font-bold text-ink">share</span>, then{' '}
-            <span className="font-bold text-ink">add to home screen</span>. it launches
-            full-screen, works offline, and updates itself when new versions are deployed.
-          </div>
-        </section>
       </div>
     </Screen>
   )

@@ -9,6 +9,8 @@ export default defineConfig({
   // Served from https://typeterson.github.io/daily-routine-tracker/
   base: '/daily-routine-tracker/',
   define: {
+    // npm injects the package.json version into scripts it runs
+    __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? '0.0.0'),
     __BUILD_DATE__: JSON.stringify(new Date().toISOString()),
   },
   plugins: [
