@@ -10,11 +10,12 @@ import { Screen } from '../../components/Screen'
 import { SwipeActions } from '../../components/SwipeActions'
 import { Group } from '../../components/forms'
 import { db } from '../../db/schema'
-import { archiveGoal, deleteGoal, unarchiveGoal } from '../../db/repo'
+import { unarchiveGoal } from '../../db/repo'
 import type { Goal } from '../../db/models'
 import { fromDateStr } from '../../domain/dates'
 import { goalPercent } from '../../domain/progress'
 import { GoalEditorSheet } from './GoalEditorSheet'
+import { requestArchiveGoal, requestDeleteGoal } from './goalActions'
 
 export default function GoalsList() {
   const navigate = useNavigate()
@@ -47,21 +48,8 @@ export default function GoalsList() {
 
   const openGoal = (id: string) => navigate(`/goals/${id}`, { state: { backLabel: 'goals' } })
 
-  const doArchive = async (goal: Goal) => {
-    const subCount = childrenOf(goal.id).length
-    const message =
-      subCount > 0
-        ? `“${goal.title}” has ${subCount} sub-goal${subCount === 1 ? '' : 's'} that will stay active. Archive it anyway?`
-        : `Archive “${goal.title}”? You can restore it from the Archived section.`
-    if (window.confirm(message)) await archiveGoal(goal.id)
-  }
-
-  const doDelete = async (goal: Goal) => {
-    const ok = window.confirm(
-      `Delete “${goal.title}”? Its check-ins and checkpoints are deleted too. Sub-goals and linked tasks are kept.`,
-    )
-    if (ok) await deleteGoal(goal.id)
-  }
+  const doArchive = (goal: Goal) => requestArchiveGoal(goal, childrenOf(goal.id).length)
+  const doDelete = (goal: Goal) => requestDeleteGoal(goal, childrenOf(goal.id).length)
 
   return (
     <>
@@ -138,12 +126,14 @@ export default function GoalsList() {
                       <Icon name="chevron-right" size={15} className="text-ink-dim/60" />
                     </div>
                   </div>
-                  <div className="mt-3 flex items-center gap-3">
-                    <ProgressBar percent={percent} color={goal.color} className="flex-1" />
-                    <span className="w-10 text-right text-[13px] font-semibold text-ink-dim">
-                      {percent != null ? `${Math.round(percent)}%` : '—'}
-                    </span>
-                  </div>
+                  {goal.metric != null && (
+                    <div className="mt-3 flex items-center gap-3">
+                      <ProgressBar percent={percent} color={goal.color} className="flex-1" />
+                      <span className="w-10 text-right text-[13px] font-semibold text-ink-dim">
+                        {percent != null ? `${Math.round(percent)}%` : '—'}
+                      </span>
+                    </div>
+                  )}
                   {subGoals.length > 0 && (
                     <div className="mt-3 space-y-2.5 border-t border-line pt-3">
                       {subGoals.map((sub) => {
@@ -161,10 +151,18 @@ export default function GoalsList() {
                             <span className="min-w-0 flex-1 truncate text-[14px]">
                               {sub.title}
                             </span>
-                            <ProgressBar percent={subPercent} color={sub.color} className="w-20" />
-                            <span className="w-9 text-right text-[12px] font-medium text-ink-dim">
-                              {subPercent != null ? `${Math.round(subPercent)}%` : '—'}
-                            </span>
+                            {sub.metric != null && (
+                              <>
+                                <ProgressBar
+                                  percent={subPercent}
+                                  color={sub.color}
+                                  className="w-20"
+                                />
+                                <span className="w-9 text-right text-[12px] font-medium text-ink-dim">
+                                  {subPercent != null ? `${Math.round(subPercent)}%` : '—'}
+                                </span>
+                              </>
+                            )}
                           </button>
                         )
                       })}

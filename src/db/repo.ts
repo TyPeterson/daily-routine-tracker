@@ -121,8 +121,22 @@ export async function updateGoal(id: string, changes: Partial<Omit<Goal, 'id'>>)
   await db.goals.update(id, changes)
 }
 
-export async function archiveGoal(id: string): Promise<void> {
-  await db.goals.update(id, { archivedAt: Date.now() })
+export async function archiveGoal(
+  id: string,
+  opts?: { includeSubGoals?: boolean },
+): Promise<void> {
+  const at = Date.now()
+  await db.transaction('rw', db.goals, async () => {
+    await db.goals.update(id, { archivedAt: at })
+    if (opts?.includeSubGoals) {
+      await db.goals
+        .where('parentGoalId')
+        .equals(id)
+        .modify((g) => {
+          g.archivedAt = at
+        })
+    }
+  })
 }
 
 export async function unarchiveGoal(id: string): Promise<void> {
@@ -135,27 +149,34 @@ export async function unarchiveGoal(id: string): Promise<void> {
 }
 
 /**
- * Delete a goal and everything that only makes sense inside it (checkpoints,
- * check-ins). Sub-goals are kept and promoted to top level; linked tasks are
- * kept and unlinked.
+ * Delete a goal and everything that only makes sense inside it (milestones,
+ * check-ins). Sub-goals are either promoted to top level (default) or deleted
+ * along with it; linked tasks are always kept and unlinked.
  */
-export async function deleteGoal(id: string): Promise<void> {
+export async function deleteGoal(
+  id: string,
+  opts?: { includeSubGoals?: boolean },
+): Promise<void> {
   await db.transaction('rw', [db.goals, db.checkpoints, db.checkIns, db.tasks], async () => {
-    await db.goals
-      .where('parentGoalId')
-      .equals(id)
-      .modify((g) => {
-        delete g.parentGoalId
-      })
+    const childIds = (await db.goals.where('parentGoalId').equals(id).toArray()).map((g) => g.id)
+    const targets = opts?.includeSubGoals ? [id, ...childIds] : [id]
+    if (!opts?.includeSubGoals) {
+      await db.goals
+        .where('parentGoalId')
+        .equals(id)
+        .modify((g) => {
+          delete g.parentGoalId
+        })
+    }
     await db.tasks
       .where('goalIds')
-      .equals(id)
+      .anyOf(targets)
       .modify((t) => {
-        t.goalIds = t.goalIds.filter((g) => g !== id)
+        t.goalIds = t.goalIds.filter((g) => !targets.includes(g))
       })
-    await db.checkpoints.where('goalId').equals(id).delete()
-    await db.checkIns.where('goalId').equals(id).delete()
-    await db.goals.delete(id)
+    await db.checkpoints.where('goalId').anyOf(targets).delete()
+    await db.checkIns.where('goalId').anyOf(targets).delete()
+    await db.goals.bulkDelete(targets)
   })
 }
 

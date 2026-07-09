@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import { BottomNav } from './components/BottomNav'
+import { DialogHost } from './components/Dialog'
 import { UpdateBanner } from './components/UpdateBanner'
 import { pinViewportListener } from './hooks/useVisualViewport'
 import TodayView from './features/today/TodayView'
@@ -38,6 +39,7 @@ export default function App() {
       {/* frosted strip so content scrolling under the status bar stays legible */}
       <div className="pointer-events-none fixed inset-x-0 top-0 z-30 h-[env(safe-area-inset-top)] bg-canvas/70 backdrop-blur-md" />
       <UpdateBanner />
+      <DialogHost />
       <main className="min-h-0 flex-1">
         <Routes>
           <Route path="/" element={<TodayView />} />

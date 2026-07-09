@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import { format } from 'date-fns'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { confirmDialog } from '../../components/Dialog'
 import { Icon } from '../../components/Icon'
 import { ProgressBar } from '../../components/ProgressBar'
 import { Screen } from '../../components/Screen'
@@ -183,27 +184,29 @@ export default function GoalDetail() {
           )}
 
           <div className="module p-4">
-            <div className="flex items-baseline justify-between">
-              <span className="text-[11px] font-bold tracking-[0.1em] text-ink-dim">
-                progress
-              </span>
-              {goal.metric && (
-                <span className="text-[12px] font-semibold text-ink-dim">
-                  {latest?.value ?? goal.metric.startValue ?? '—'}
-                  {goal.metric.targetValue != null && ` / ${goal.metric.targetValue}`} {unit}
-                </span>
-              )}
-            </div>
-            <div className="mt-2.5 flex items-center gap-3">
-              <ProgressBar percent={percent} color={goal.color} className="flex-1" />
-              <span className="text-[15px] font-bold">
-                {percent != null ? `${Math.round(percent)}%` : '—'}
-              </span>
-            </div>
+            {goal.metric != null && (
+              <>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-[11px] font-bold tracking-[0.1em] text-ink-dim">
+                    progress
+                  </span>
+                  <span className="text-[12px] font-semibold text-ink-dim">
+                    {latest?.value ?? goal.metric.startValue ?? '—'}
+                    {goal.metric.targetValue != null && ` / ${goal.metric.targetValue}`} {unit}
+                  </span>
+                </div>
+                <div className="mt-2.5 mb-3.5 flex items-center gap-3">
+                  <ProgressBar percent={percent} color={goal.color} className="flex-1" />
+                  <span className="text-[15px] font-bold">
+                    {percent != null ? `${Math.round(percent)}%` : '—'}
+                  </span>
+                </div>
+              </>
+            )}
             <button
               type="button"
               onClick={() => setCheckInOpen(true)}
-              className="key key-primary mt-3.5 w-full py-2.5 text-[14px] font-bold"
+              className="key key-primary w-full py-2.5 text-[14px] font-bold"
             >
               check in
             </button>
@@ -254,10 +257,15 @@ export default function GoalDetail() {
                     <button
                       type="button"
                       aria-label="Delete milestone"
-                      onClick={() => {
-                        if (window.confirm(`Delete milestone “${checkpointLabel(cp, unit)}”?`))
-                          void deleteCheckpoint(cp.id)
-                      }}
+                      onClick={() =>
+                        void confirmDialog({
+                          title: `delete milestone “${checkpointLabel(cp, unit)}”?`,
+                          confirmLabel: 'delete',
+                          danger: true,
+                        }).then((ok) => {
+                          if (ok) void deleteCheckpoint(cp.id)
+                        })
+                      }
                       className="p-1 text-ink-dim/50"
                     >
                       <Icon name="trash" size={16} />
@@ -387,9 +395,16 @@ export default function GoalDetail() {
                       <button
                         type="button"
                         aria-label="Delete check-in"
-                        onClick={() => {
-                          if (window.confirm('Delete this check-in?')) void deleteCheckIn(ci.id)
-                        }}
+                        onClick={() =>
+                          void confirmDialog({
+                            title: 'delete this check-in?',
+                            message: 'milestone flags recompute from the remaining history.',
+                            confirmLabel: 'delete',
+                            danger: true,
+                          }).then((ok) => {
+                            if (ok) void deleteCheckIn(ci.id)
+                          })
+                        }
                         className="p-1 text-ink-dim/50"
                       >
                         <Icon name="trash" size={16} />

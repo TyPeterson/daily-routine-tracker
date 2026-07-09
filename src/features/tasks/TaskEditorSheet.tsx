@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { getDate, getDay } from 'date-fns'
 import { useLiveQuery } from 'dexie-react-hooks'
+import { confirmDialog } from '../../components/Dialog'
 import { Icon } from '../../components/Icon'
 import { NumberField } from '../../components/NumberField'
 import { Sheet } from '../../components/Sheet'
@@ -131,7 +132,12 @@ export function TaskEditorSheet({
       setScopeAsk('delete')
       return
     }
-    if (!window.confirm(`Delete “${task.title}”?`)) return
+    const ok = await confirmDialog({
+      title: `delete “${task.title}”?`,
+      confirmLabel: 'delete',
+      danger: true,
+    })
+    if (!ok) return
     await deleteTask(task.id)
     onClose()
   }
@@ -206,13 +212,13 @@ export function TaskEditorSheet({
                 </span>
               </Row>
               {recType === 'weekly' && (
-                <div className="flex justify-between px-4 py-3">
+                <div className="flex justify-between gap-1.5 px-4 py-3">
                   {WEEKDAY_CHIPS.map((label, i) => (
                     <button
                       key={i}
                       type="button"
                       onClick={() => toggleWeekday(i)}
-                      className={`h-10 w-10 rounded-[8px] border text-[13px] font-bold transition-colors ${
+                      className={`aspect-square max-w-10 flex-1 rounded-[8px] border text-[13px] font-bold transition-colors ${
                         weekdays.includes(i)
                           ? 'border-edge bg-accent text-on-accent'
                           : 'border-edge/40 bg-surface2 text-ink-dim'

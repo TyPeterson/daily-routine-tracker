@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { format } from 'date-fns'
+import { alertDialog, confirmDialog } from '../../components/Dialog'
 import { Icon } from '../../components/Icon'
 import { Screen } from '../../components/Screen'
 import { Group, Row, SectionLabel, Segmented } from '../../components/forms'
@@ -40,12 +41,23 @@ export default function SettingsView() {
   const doImport = async (file: File) => {
     try {
       const data = JSON.parse(await file.text()) as BackupData
-      const when = data.exportedAt ? format(new Date(data.exportedAt), 'MMM d, yyyy') : 'unknown date'
-      if (!window.confirm(`Replace ALL current data with the backup from ${when}?`)) return
+      const when = data.exportedAt
+        ? format(new Date(data.exportedAt), 'MMM d, yyyy').toLowerCase()
+        : 'an unknown date'
+      const ok = await confirmDialog({
+        title: 'restore backup?',
+        message: `all current data will be replaced with the backup from ${when}.`,
+        confirmLabel: 'restore',
+        danger: true,
+      })
+      if (!ok) return
       await importData(data)
-      window.alert('Backup restored.')
+      await alertDialog({ title: 'backup restored' })
     } catch (err) {
-      window.alert(`Import failed: ${err instanceof Error ? err.message : 'invalid file'}`)
+      await alertDialog({
+        title: 'import failed',
+        message: err instanceof Error ? err.message : 'invalid file',
+      })
     }
   }
 

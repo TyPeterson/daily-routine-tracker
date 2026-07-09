@@ -35,7 +35,9 @@
     --ink-dim: #8f8e86;
     --line: rgba(236, 234, 226, 0.14);
     --edge: #eceae2;
-    --hard: rgba(0, 0, 0, 0.6);
+    /* on the charcoal chassis the extrusion "shadow" is an ivory echo —
+       black would vanish; this keeps the same offset-block effect as light */
+    --hard: rgba(236, 234, 226, 0.7);
     --accent: #ff5a14;
     --accent-soft: rgba(255, 90, 20, 0.16);
     --on-accent: #141414;
@@ -53,7 +55,7 @@
   --ink-dim: #8f8e86;
   --line: rgba(236, 234, 226, 0.14);
   --edge: #eceae2;
-  --hard: rgba(0, 0, 0, 0.6);
+  --hard: rgba(236, 234, 226, 0.7);
   --accent: #ff5a14;
   --accent-soft: rgba(255, 90, 20, 0.16);
   --on-accent: #141414;
@@ -194,6 +196,15 @@
     background: var(--good);
     box-shadow: 0 0 7px var(--good);
   }
+  .led-danger {
+    background: var(--danger);
+    box-shadow: 0 0 7px var(--danger);
+  }
+
+  .key-danger {
+    background: var(--danger);
+    color: #ffffff;
+  }
 
   /* hazard tape */
   .stripes {
@@ -237,6 +248,16 @@
     opacity: 1;
   }
 }
+@keyframes pop-in {
+  from {
+    transform: scale(0.95) translateY(8px);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
 @keyframes led-blink {
   0%,
   100% {
@@ -257,4 +278,7 @@
 }
 .animate-led-blink {
   animation: led-blink 1.1s steps(1) infinite;
+}
+.animate-pop-in {
+  animation: pop-in 0.22s cubic-bezier(0.32, 0.72, 0, 1);
 }

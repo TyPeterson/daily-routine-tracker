@@ -1,13 +1,14 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Sheet } from '../../components/Sheet'
 import { Group, Row, SectionLabel, Segmented, Toggle } from '../../components/forms'
 import { ColorPicker } from '../../components/pickers'
 import { db } from '../../db/schema'
-import { archiveGoal, createGoal, deleteGoal, unarchiveGoal, updateGoal } from '../../db/repo'
+import { createGoal, unarchiveGoal, updateGoal } from '../../db/repo'
 import type { Goal, MetricDirection } from '../../db/models'
 import { addDaysStr, todayStr } from '../../domain/dates'
 import { useActiveGoals } from '../../hooks/useGoals'
+import { requestArchiveGoal, requestDeleteGoal } from './goalActions'
 
 const parseNum = (s: string): number | undefined => {
   const trimmed = s.trim()
@@ -16,20 +17,13 @@ const parseNum = (s: string): number | undefined => {
   return Number.isNaN(n) ? undefined : n
 }
 
-/** All goals that would create a cycle if chosen as this goal's parent. */
-function descendantIds(goalId: string, goals: Goal[]): Set<string> {
-  const out = new Set([goalId])
-  let grew = true
-  while (grew) {
-    grew = false
-    for (const g of goals) {
-      if (g.parentGoalId && out.has(g.parentGoalId) && !out.has(g.id)) {
-        out.add(g.id)
-        grew = true
-      }
-    }
-  }
-  return out
+function ErrorHint({ children }: { children: ReactNode }) {
+  return (
+    <p className="mt-1.5 flex items-center gap-1.5 px-1 text-[11px] font-semibold text-danger">
+      <span className="led led-danger shrink-0" />
+      {children}
+    </p>
+  )
 }
 
 export function GoalEditorSheet({
@@ -49,97 +43,150 @@ export function GoalEditorSheet({
     ) ?? 0
 
   const [title, setTitle] = useState(goal?.title ?? '')
-  const [hasTargetDate, setHasTargetDate] = useState(goal?.targetDate != null)
-  const [targetDate, setTargetDate] = useState(goal?.targetDate ?? addDaysStr(todayStr(), 90))
-  const [hasMetric, setHasMetric] = useState(goal?.metric != null)
+  const [color, setColor] = useState<string | undefined>(goal?.color)
+  // tracking is the default for new goals; editing derives from the metric
+  const [trackProgress, setTrackProgress] = useState(goal ? goal.metric != null : true)
   const [unit, setUnit] = useState(goal?.metric?.unit ?? '')
   const [direction, setDirection] = useState<MetricDirection>(
     goal?.metric?.direction ?? 'increase',
   )
   const [startValue, setStartValue] = useState(goal?.metric?.startValue?.toString() ?? '')
   const [targetValue, setTargetValue] = useState(goal?.metric?.targetValue?.toString() ?? '')
+  const [hasTargetDate, setHasTargetDate] = useState(goal?.targetDate != null)
+  const [targetDate, setTargetDate] = useState(goal?.targetDate ?? addDaysStr(todayStr(), 90))
   const [parentId, setParentId] = useState(goal?.parentGoalId ?? defaultParentId ?? '')
   const [completed, setCompleted] = useState(goal?.completedAt != null)
-  const [color, setColor] = useState<string | undefined>(goal?.color)
 
-  const forbiddenParents = goal ? descendantIds(goal.id, allGoals) : new Set<string>()
-  // one level of nesting only: sub-goals can't be parents, and a goal that
-  // already has sub-goals can't become someone's child
-  const parentOptions = allGoals.filter(
-    (g) => !forbiddenParents.has(g.id) && !g.parentGoalId,
-  )
+  // gentle validation: cues appear only after a field was visited (or a save
+  // was attempted), and never while the cursor is still in the field
+  const [attempted, setAttempted] = useState(false)
+  const [touched, setTouched] = useState<Record<string, boolean>>({})
+  const [editing, setEditing] = useState<string | null>(null)
+  const fieldProps = (name: string) => ({
+    onFocus: () => setEditing(name),
+    onBlur: () => {
+      setEditing(null)
+      setTouched((t) => ({ ...t, [name]: true }))
+    },
+  })
+
+  // one level of nesting only
+  const parentOptions = allGoals.filter((g) => !g.parentGoalId && g.id !== goal?.id)
   const canHaveParent = subGoalCount === 0
 
-  const canSave = title.trim().length > 0 && (!hasMetric || unit.trim().length > 0)
+  const startNum = parseNum(startValue)
+  const targetNum = parseNum(targetValue)
+
+  const titleMissing = title.trim() === ''
+  const unitMissing = trackProgress && unit.trim() === ''
+  const targetMissing = trackProgress && targetNum == null
+  const directionConflict =
+    trackProgress &&
+    startNum != null &&
+    targetNum != null &&
+    (direction === 'increase' ? targetNum <= startNum : targetNum >= startNum)
+
+  const canSave = !titleMissing && !unitMissing && !targetMissing && !directionConflict
+
+  const showError = (name: string, invalid: boolean) =>
+    invalid && editing !== name && (attempted || touched[name])
+  const showTitleError = showError('title', titleMissing)
+  const showUnitError = showError('unit', unitMissing)
+  const showTargetError = showError('target', targetMissing)
+  // consistency error shows once both numbers are entered and left alone
+  const showDirectionError =
+    directionConflict && editing !== 'start' && editing !== 'target'
+
+  const measureError = showUnitError
+    ? 'enter a unit — miles, lbs, chapters…'
+    : showTargetError
+      ? 'enter a target number to track'
+      : showDirectionError
+        ? direction === 'increase'
+          ? 'target must be greater than the starting value for an increasing goal'
+          : 'target must be less than the starting value for a decreasing goal'
+        : null
+
+  const inputCls = (bad: boolean) =>
+    `w-28 rounded-[7px] border bg-surface2 px-2 py-1.5 text-right font-semibold outline-none placeholder:text-ink-dim/60 ${
+      bad ? 'border-danger ring-1 ring-danger/60' : 'border-edge/50'
+    }`
 
   const save = async () => {
     const payload = {
       title: title.trim(),
       color,
       parentGoalId: parentId || undefined,
-      targetDate: hasTargetDate ? targetDate : undefined,
-      metric: hasMetric
+      targetDate: trackProgress && hasTargetDate ? targetDate : undefined,
+      metric: trackProgress
         ? {
             unit: unit.trim(),
             direction,
-            startValue: parseNum(startValue),
-            targetValue: parseNum(targetValue),
+            startValue: startNum,
+            targetValue: targetNum,
           }
         : undefined,
-      completedAt: completed ? (goal?.completedAt ?? Date.now()) : undefined,
+      completedAt:
+        goal?.completedAt != null ? (completed ? goal.completedAt : undefined) : undefined,
     }
     if (goal) await updateGoal(goal.id, payload)
     else await createGoal({ ...payload, description: '' })
     onClose()
   }
 
+  const onSaveTap = () => {
+    if (!canSave) {
+      setAttempted(true)
+      return
+    }
+    void save()
+  }
+
   const toggleArchive = async () => {
     if (!goal) return
     if (goal.archivedAt != null) {
       await unarchiveGoal(goal.id)
-    } else {
-      const warning =
-        subGoalCount > 0
-          ? `“${goal.title}” has ${subGoalCount} sub-goal${subGoalCount === 1 ? '' : 's'} that will stay active. Archive it anyway?`
-          : `Archive “${goal.title}”? You can find it under Archived on the Goals tab.`
-      if (!window.confirm(warning)) return
-      await archiveGoal(goal.id)
+      onClose()
+      return
     }
-    onClose()
+    if (await requestArchiveGoal(goal, subGoalCount)) onClose()
   }
 
   const remove = async () => {
     if (!goal) return
-    const ok = window.confirm(
-      `Delete “${goal.title}”? Its check-ins and checkpoints are deleted too. Sub-goals and linked tasks are kept.`,
-    )
-    if (!ok) return
-    await deleteGoal(goal.id)
-    onClose()
+    if (await requestDeleteGoal(goal, subGoalCount)) onClose()
   }
 
   return (
     <Sheet title={goal ? 'edit goal' : 'new goal'} tall onClose={onClose}>
       <div className="space-y-5">
-        <Group>
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="goal name"
-            autoFocus={!goal}
-            className="w-full bg-transparent px-4 py-3 text-[16px] font-semibold outline-none placeholder:text-ink-dim/70"
-          />
-          <ColorPicker value={color} onChange={setColor} />
-        </Group>
+        <div>
+          <Group>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="goal name"
+              autoFocus={!goal}
+              {...fieldProps('title')}
+              className={`w-full bg-transparent px-4 py-3 text-[16px] font-semibold outline-none placeholder:text-ink-dim/70 ${
+                showTitleError ? 'rounded-t-[9px] ring-1 ring-danger/60 ring-inset' : ''
+              }`}
+            />
+            <ColorPicker value={color} onChange={setColor} />
+          </Group>
+          {showTitleError && <ErrorHint>name the goal</ErrorHint>}
+        </div>
 
         <section>
-          <SectionLabel index="01">measure</SectionLabel>
+          <SectionLabel index="01">progress</SectionLabel>
           <Group>
-            <Row label="track a number">
-              <Toggle on={hasMetric} onChange={setHasMetric} />
+            <Row label="track progress">
+              <Toggle on={trackProgress} onChange={setTrackProgress} />
             </Row>
-            {hasMetric && (
-              <>
+          </Group>
+          {trackProgress && (
+            <>
+              <Group className="mt-3">
                 <Row label="unit">
                   <input
                     value={unit}
@@ -148,7 +195,10 @@ export function GoalEditorSheet({
                     autoCapitalize="none"
                     autoCorrect="off"
                     spellCheck={false}
-                    className="w-44 bg-transparent text-right outline-none placeholder:text-ink-dim/60"
+                    {...fieldProps('unit')}
+                    className={`w-44 rounded-[7px] border bg-transparent px-2 py-1 text-right outline-none placeholder:text-ink-dim/60 ${
+                      showUnitError ? 'border-danger ring-1 ring-danger/60' : 'border-transparent'
+                    }`}
                   />
                 </Row>
                 <div className="px-4 py-3">
@@ -169,7 +219,8 @@ export function GoalEditorSheet({
                     value={startValue}
                     onChange={(e) => setStartValue(e.target.value)}
                     placeholder="optional"
-                    className="w-28 rounded-[7px] border border-edge/50 bg-surface2 px-2 py-1.5 text-right outline-none placeholder:text-ink-dim/60"
+                    {...fieldProps('start')}
+                    className={inputCls(showDirectionError)}
                   />
                 </Row>
                 <Row label="target">
@@ -179,59 +230,66 @@ export function GoalEditorSheet({
                     inputMode="decimal"
                     value={targetValue}
                     onChange={(e) => setTargetValue(e.target.value)}
-                    placeholder="optional"
-                    className="w-28 rounded-[7px] border border-edge/50 bg-surface2 px-2 py-1.5 text-right outline-none placeholder:text-ink-dim/60"
+                    placeholder="required"
+                    {...fieldProps('target')}
+                    className={inputCls(showTargetError || showDirectionError)}
                   />
                 </Row>
-              </>
-            )}
-          </Group>
+                <Row label="target date">
+                  <span className="flex items-center gap-3">
+                    {hasTargetDate && (
+                      <input
+                        type="date"
+                        value={targetDate}
+                        onChange={(e) => e.target.value && setTargetDate(e.target.value)}
+                        className="text-right font-semibold text-accent outline-none"
+                      />
+                    )}
+                    <Toggle on={hasTargetDate} onChange={setHasTargetDate} />
+                  </span>
+                </Row>
+              </Group>
+              {measureError && <ErrorHint>{measureError}</ErrorHint>}
+            </>
+          )}
         </section>
 
-        <section>
-          <SectionLabel index="02">details</SectionLabel>
-          <Group>
-            <Row label="target date">
-              <span className="flex items-center gap-3">
-                {hasTargetDate && (
-                  <input
-                    type="date"
-                    value={targetDate}
-                    onChange={(e) => e.target.value && setTargetDate(e.target.value)}
-                    className="text-right font-semibold text-accent outline-none"
-                  />
-                )}
-                <Toggle on={hasTargetDate} onChange={setHasTargetDate} />
-              </span>
-            </Row>
-            {canHaveParent && (
-              <Row label="parent goal">
-                <select
-                  value={parentId}
-                  onChange={(e) => setParentId(e.target.value)}
-                  className="max-w-44 bg-transparent text-right font-semibold text-accent outline-none"
-                >
-                  <option value="">none</option>
-                  {parentOptions.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.title}
-                    </option>
-                  ))}
-                </select>
-              </Row>
-            )}
-            <Row label="completed">
-              <Toggle on={completed} onChange={setCompleted} />
-            </Row>
-          </Group>
-        </section>
+        {(canHaveParent || (goal && goal.completedAt != null)) && (
+          <section>
+            <SectionLabel index="02">details</SectionLabel>
+            <Group>
+              {canHaveParent && (
+                <Row label="parent goal">
+                  <select
+                    value={parentId}
+                    onChange={(e) => setParentId(e.target.value)}
+                    className="max-w-44 bg-transparent text-right font-semibold text-accent outline-none"
+                  >
+                    <option value="">none</option>
+                    {parentOptions.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.title}
+                      </option>
+                    ))}
+                  </select>
+                </Row>
+              )}
+              {goal && goal.completedAt != null && (
+                <Row label="completed">
+                  <Toggle on={completed} onChange={setCompleted} />
+                </Row>
+              )}
+            </Group>
+          </section>
+        )}
 
         <div className="space-y-2.5 pt-1">
           <button
             type="button"
-            disabled={!canSave}
-            onClick={() => void save()}
-            className="key key-primary w-full py-3.5 text-[15px] font-bold"
+            onClick={onSaveTap}
+            className={`key key-primary w-full py-3.5 text-[15px] font-bold ${
+              canSave ? '' : 'opacity-40'
+            }`}
           >
             {goal ? 'save changes' : 'add goal'}
           </button>

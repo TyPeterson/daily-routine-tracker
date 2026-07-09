@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
+import { confirmDialog } from '../../components/Dialog'
 import { Sheet } from '../../components/Sheet'
 import { Group, Row, Segmented } from '../../components/forms'
 import { db } from '../../db/schema'
@@ -67,9 +68,11 @@ export function CheckInSheet({
       goal.completedAt == null &&
       goalTargetReached(goal.metric, numValue)
     ) {
-      const ok = window.confirm(
-        `You reached your target of ${goal.metric.targetValue} ${goal.metric.unit}! Mark “${goal.title}” as completed?`,
-      )
+      const ok = await confirmDialog({
+        title: 'target reached!',
+        message: `you hit ${goal.metric.targetValue} ${goal.metric.unit}. mark “${goal.title}” as completed?`,
+        confirmLabel: 'mark completed',
+      })
       if (ok) await updateGoal(goal.id, { completedAt: Date.now() })
     }
     onClose()
