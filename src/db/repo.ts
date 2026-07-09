@@ -1,6 +1,7 @@
 import { db } from './schema'
 import type { CheckIn, Checkpoint, Completion, Goal, Task } from './models'
 import type { DateStr } from '../domain/dates'
+import { valueCrosses } from '../domain/progress'
 
 const newId = () => crypto.randomUUID()
 
@@ -47,6 +48,19 @@ export async function updateGoal(id: string, changes: Partial<Omit<Goal, 'id'>>)
   await db.goals.update(id, changes)
 }
 
+export async function archiveGoal(id: string): Promise<void> {
+  await db.goals.update(id, { archivedAt: Date.now() })
+}
+
+export async function unarchiveGoal(id: string): Promise<void> {
+  await db.goals
+    .where('id')
+    .equals(id)
+    .modify((g) => {
+      delete g.archivedAt
+    })
+}
+
 /**
  * Delete a goal and everything that only makes sense inside it (checkpoints,
  * check-ins). Sub-goals are kept and promoted to top level; linked tasks are
@@ -72,52 +86,66 @@ export async function deleteGoal(id: string): Promise<void> {
   })
 }
 
-// ---------- check-ins ----------
+// ---------- check-ins & checkpoints ----------
 
-/** Record progress; if it names a checkpoint, that checkpoint becomes achieved. */
+/**
+ * Derive checkpoint achievement from the check-in record: a checkpoint is
+ * achieved at the moment of the earliest check-in whose value crosses it.
+ * Called inside any transaction that changes check-ins or checkpoints.
+ */
+async function recomputeCheckpointAchievements(goalId: string): Promise<void> {
+  const goal = await db.goals.get(goalId)
+  const direction = goal?.metric?.direction
+  const [checkpoints, checkIns] = await Promise.all([
+    db.checkpoints.where('goalId').equals(goalId).toArray(),
+    db.checkIns.where('goalId').equals(goalId).toArray(),
+  ])
+  const valued = checkIns
+    .filter((c) => c.value != null)
+    .sort((a, b) => a.at - b.at)
+  for (const cp of checkpoints) {
+    if (cp.targetValue == null || !direction) continue
+    const hit = valued.find((ci) => valueCrosses(direction, ci.value!, cp.targetValue!))
+    const achievedAt = hit?.at
+    if (achievedAt !== cp.achievedAt) {
+      await db.checkpoints
+        .where('id')
+        .equals(cp.id)
+        .modify((c) => {
+          if (achievedAt == null) delete c.achievedAt
+          else c.achievedAt = achievedAt
+        })
+    }
+  }
+}
+
+/** Record progress; any checkpoints the value crosses become achieved. */
 export async function addCheckIn(input: Omit<CheckIn, 'id'>): Promise<string> {
-  return db.transaction('rw', db.checkIns, db.checkpoints, async () => {
+  return db.transaction('rw', [db.checkIns, db.checkpoints, db.goals], async () => {
     const id = newId()
     await db.checkIns.add({ ...input, id })
-    if (input.checkpointId) {
-      await db.checkpoints.update(input.checkpointId, { achievedAt: input.at })
-    }
+    await recomputeCheckpointAchievements(input.goalId)
     return id
   })
 }
 
 export async function deleteCheckIn(id: string): Promise<void> {
-  await db.transaction('rw', db.checkIns, db.checkpoints, async () => {
+  await db.transaction('rw', [db.checkIns, db.checkpoints, db.goals], async () => {
     const checkIn = await db.checkIns.get(id)
     if (!checkIn) return
     await db.checkIns.delete(id)
-    if (checkIn.checkpointId) {
-      // un-achieve the checkpoint unless another check-in still claims it
-      const remaining = await db.checkIns.where('checkpointId').equals(checkIn.checkpointId).count()
-      if (remaining === 0) {
-        await db.checkpoints
-          .where('id')
-          .equals(checkIn.checkpointId)
-          .modify((cp) => {
-            delete cp.achievedAt
-          })
-      }
-    }
+    await recomputeCheckpointAchievements(checkIn.goalId)
   })
 }
 
-// ---------- checkpoints ----------
-
-export async function addCheckpoint(
-  goalId: string,
-  title: string,
-  targetValue?: number,
-): Promise<string> {
-  return db.transaction('rw', db.checkpoints, async () => {
+export async function addCheckpoint(goalId: string, targetValue: number): Promise<string> {
+  return db.transaction('rw', [db.checkpoints, db.checkIns, db.goals], async () => {
     const siblings = await db.checkpoints.where('goalId').equals(goalId).toArray()
     const sortOrder = Math.max(0, ...siblings.map((c) => c.sortOrder)) + 1
     const id = newId()
-    await db.checkpoints.add({ id, goalId, title, targetValue, sortOrder })
+    await db.checkpoints.add({ id, goalId, targetValue, sortOrder })
+    // a past check-in may already cross the new checkpoint
+    await recomputeCheckpointAchievements(goalId)
     return id
   })
 }
@@ -129,27 +157,8 @@ export async function updateCheckpoint(
   await db.checkpoints.update(id, changes)
 }
 
-/** Toggle achieved by hand (not every milestone needs a check-in). */
-export async function toggleCheckpointAchieved(id: string): Promise<void> {
-  await db.checkpoints
-    .where('id')
-    .equals(id)
-    .modify((cp) => {
-      if (cp.achievedAt != null) delete cp.achievedAt
-      else cp.achievedAt = Date.now()
-    })
-}
-
 export async function deleteCheckpoint(id: string): Promise<void> {
-  await db.transaction('rw', db.checkpoints, db.checkIns, async () => {
-    await db.checkIns
-      .where('checkpointId')
-      .equals(id)
-      .modify((ci) => {
-        delete ci.checkpointId
-      })
-    await db.checkpoints.delete(id)
-  })
+  await db.checkpoints.delete(id)
 }
 
 // ---------- backup ----------

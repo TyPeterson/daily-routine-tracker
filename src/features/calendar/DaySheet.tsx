@@ -7,6 +7,7 @@ import type { Task } from '../../db/models'
 import { fromDateStr, type DateStr } from '../../domain/dates'
 import { useGoalsMap } from '../../hooks/useGoals'
 import { useTasksForDate } from '../../hooks/useTasksForDate'
+import { TaskCheckInFlow } from '../goals/TaskCheckInFlow'
 import { TaskEditorSheet } from '../tasks/TaskEditorSheet'
 import { TaskRow } from '../today/TaskRow'
 
@@ -15,6 +16,7 @@ export function DaySheet({ date, onClose }: { date: DateStr; onClose: () => void
   const dayTasks = useTasksForDate(date)
   const goals = useGoalsMap()
   const [editor, setEditor] = useState<{ open: boolean; task?: Task }>({ open: false })
+  const [checkInTask, setCheckInTask] = useState<Task | null>(null)
 
   return (
     <>
@@ -29,6 +31,7 @@ export function DaySheet({ date, onClose }: { date: DateStr; onClose: () => void
                 goals={goals}
                 onToggle={() => void toggleCompletion(task.id, date)}
                 onOpen={() => setEditor({ open: true, task })}
+                onCheckIn={() => setCheckInTask(task)}
               />
             ))}
           </div>
@@ -49,6 +52,9 @@ export function DaySheet({ date, onClose }: { date: DateStr; onClose: () => void
           defaultDate={date}
           onClose={() => setEditor({ open: false })}
         />
+      )}
+      {checkInTask && (
+        <TaskCheckInFlow task={checkInTask} onClose={() => setCheckInTask(null)} />
       )}
     </>
   )

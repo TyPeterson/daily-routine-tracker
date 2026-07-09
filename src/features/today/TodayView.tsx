@@ -10,6 +10,7 @@ import { addDaysStr, fromDateStr, todayStr } from '../../domain/dates'
 import { useGoalsMap } from '../../hooks/useGoals'
 import { useSwipeNav } from '../../hooks/useSwipe'
 import { useTasksForDate } from '../../hooks/useTasksForDate'
+import { TaskCheckInFlow } from '../goals/TaskCheckInFlow'
 import { TaskEditorSheet } from '../tasks/TaskEditorSheet'
 import { TaskRow } from './TaskRow'
 
@@ -18,6 +19,7 @@ export default function TodayView() {
   const dayTasks = useTasksForDate(date)
   const goals = useGoalsMap()
   const [editor, setEditor] = useState<{ open: boolean; task?: Task }>({ open: false })
+  const [checkInTask, setCheckInTask] = useState<Task | null>(null)
   const swipe = useSwipeNav(
     () => setDate((d) => addDaysStr(d, -1)),
     () => setDate((d) => addDaysStr(d, 1)),
@@ -76,6 +78,7 @@ export default function TodayView() {
                   goals={goals}
                   onToggle={() => void toggleCompletion(task.id, date)}
                   onOpen={() => setEditor({ open: true, task })}
+                  onCheckIn={() => setCheckInTask(task)}
                 />
               ))}
             </div>
@@ -96,6 +99,9 @@ export default function TodayView() {
           defaultDate={date}
           onClose={() => setEditor({ open: false })}
         />
+      )}
+      {checkInTask && (
+        <TaskCheckInFlow task={checkInTask} onClose={() => setCheckInTask(null)} />
       )}
     </div>
   )

@@ -1,31 +1,28 @@
 import { useState } from 'react'
-import { Icon } from '../../components/Icon'
+import { useLiveQuery } from 'dexie-react-hooks'
 import { Sheet } from '../../components/Sheet'
-import { Group, Row, SectionLabel } from '../../components/forms'
-import { addCheckIn } from '../../db/repo'
-import type { Checkpoint, Goal } from '../../db/models'
+import { Group, Row } from '../../components/forms'
+import { db } from '../../db/schema'
+import { addCheckIn, updateGoal } from '../../db/repo'
 import { fromDateStr, todayStr } from '../../domain/dates'
+import { goalTargetReached } from '../../domain/progress'
 
-/** Record progress toward a goal: a value, a note, optionally a checkpoint hit. */
-export function CheckInSheet({
-  goal,
-  checkpoints,
-  onClose,
-}: {
-  goal: Goal
-  checkpoints: Checkpoint[]
-  onClose: () => void
-}) {
+/**
+ * Record progress toward a goal. Checkpoints the value crosses are marked
+ * reached automatically; hitting the final target offers to complete the goal.
+ */
+export function CheckInSheet({ goalId, onClose }: { goalId: string; onClose: () => void }) {
+  const goal = useLiveQuery(() => db.goals.get(goalId), [goalId])
+
   const [value, setValue] = useState('')
   const [notes, setNotes] = useState('')
   const [date, setDate] = useState(todayStr())
-  const [checkpointId, setCheckpointId] = useState('')
 
-  const openCheckpoints = checkpoints.filter((c) => c.achievedAt == null)
+  if (!goal) return null
+
   const numValue = value.trim() === '' ? undefined : Number(value)
   const valueInvalid = numValue != null && Number.isNaN(numValue)
-  const canSave =
-    !valueInvalid && (numValue != null || notes.trim() !== '' || checkpointId !== '')
+  const canSave = !valueInvalid && (numValue != null || notes.trim() !== '')
 
   const save = async () => {
     // backdated check-ins land at noon so they sort sensibly among same-day entries
@@ -35,13 +32,23 @@ export function CheckInSheet({
       at,
       value: numValue,
       notes: notes.trim(),
-      checkpointId: checkpointId || undefined,
     })
+    if (
+      numValue != null &&
+      goal.metric &&
+      goal.completedAt == null &&
+      goalTargetReached(goal.metric, numValue)
+    ) {
+      const ok = window.confirm(
+        `You reached your target of ${goal.metric.targetValue} ${goal.metric.unit}! Mark “${goal.title}” as completed?`,
+      )
+      if (ok) await updateGoal(goal.id, { completedAt: Date.now() })
+    }
     onClose()
   }
 
   return (
-    <Sheet title="Check In" onClose={onClose}>
+    <Sheet title={`Check In — ${goal.title}`} onClose={onClose}>
       <div className="space-y-5">
         <Group>
           {goal.metric && (
@@ -75,48 +82,6 @@ export function CheckInSheet({
             className="w-full resize-none bg-transparent px-4 py-3 text-[15px] outline-none placeholder:text-ink-dim/70"
           />
         </Group>
-
-        {openCheckpoints.length > 0 && (
-          <section>
-            <SectionLabel>Reached a checkpoint?</SectionLabel>
-            <Group>
-              {openCheckpoints.map((cp) => {
-                const selected = checkpointId === cp.id
-                return (
-                  <button
-                    key={cp.id}
-                    type="button"
-                    onClick={() => setCheckpointId(selected ? '' : cp.id)}
-                    className="flex min-h-12 w-full items-center justify-between gap-3 px-4 py-2 text-left"
-                  >
-                    <span className="flex min-w-0 items-center gap-2.5">
-                      <Icon
-                        name="flag"
-                        size={17}
-                        className={selected ? 'text-accent' : 'text-ink-dim/50'}
-                      />
-                      <span className="min-w-0">
-                        <span className="block truncate text-[15px]">{cp.title}</span>
-                        {cp.targetValue != null && goal.metric && (
-                          <span className="text-[12px] text-ink-dim">
-                            {cp.targetValue} {goal.metric.unit}
-                          </span>
-                        )}
-                      </span>
-                    </span>
-                    <span
-                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
-                        selected ? 'bg-accent text-white' : 'bg-surface2 text-transparent'
-                      }`}
-                    >
-                      <Icon name="check" size={14} strokeWidth={3} />
-                    </span>
-                  </button>
-                )
-              })}
-            </Group>
-          </section>
-        )}
 
         <button
           type="button"

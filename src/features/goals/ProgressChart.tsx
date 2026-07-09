@@ -20,16 +20,21 @@ export function ProgressChart({
   checkIns,
   metric,
   checkpoints,
+  color,
 }: {
   checkIns: CheckIn[] // ascending by `at`, all with values
   metric?: GoalMetric
   checkpoints: Checkpoint[]
+  /** the goal's color; series color follows the entity */
+  color?: string
 }) {
   const accent = useCssVar('--accent')
   const good = useCssVar('--good')
   const inkDim = useCssVar('--ink-dim')
   const line = useCssVar('--line')
   const surface = useCssVar('--surface')
+  const seriesColor = color ?? accent
+  const checkpointLabel = (cp: Checkpoint) => cp.title ?? String(cp.targetValue)
 
   const data = checkIns.map((c) => ({ at: c.at, value: c.value! }))
   const markedCheckpoints = checkpoints.filter((c) => c.targetValue != null)
@@ -81,25 +86,31 @@ export function ProgressChart({
             stroke={good}
             strokeDasharray="5 4"
             strokeWidth={1.5}
-            label={{ value: 'Target', fontSize: 10, fill: good, position: 'insideTopRight' }}
+            label={{ value: 'Target', fontSize: 10, fill: inkDim, position: 'insideTopRight' }}
           />
         )}
         {markedCheckpoints.map((cp) => (
           <ReferenceLine
             key={cp.id}
             y={cp.targetValue!}
-            stroke={inkDim}
+            stroke={cp.achievedAt != null ? good : inkDim}
+            strokeOpacity={cp.achievedAt != null ? 0.7 : 1}
             strokeDasharray="2 5"
-            label={{ value: cp.title, fontSize: 9, fill: inkDim, position: 'insideTopLeft' }}
+            label={{
+              value: checkpointLabel(cp),
+              fontSize: 9,
+              fill: inkDim,
+              position: 'insideTopLeft',
+            }}
           />
         ))}
         <Line
           type="monotone"
           dataKey="value"
-          stroke={accent}
-          strokeWidth={2.5}
-          dot={{ r: 3.5, fill: accent, strokeWidth: 0 }}
-          activeDot={{ r: 5.5 }}
+          stroke={seriesColor}
+          strokeWidth={2}
+          dot={{ r: 4, fill: seriesColor, strokeWidth: 2, stroke: surface }}
+          activeDot={{ r: 6 }}
           isAnimationActive={false}
         />
       </LineChart>

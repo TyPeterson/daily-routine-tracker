@@ -3,6 +3,8 @@ import type { Goal, Task } from '../../db/models'
 import { formatTimeOfDay } from '../../domain/dates'
 import { describeRecurrence } from '../../domain/recurrence'
 
+const tint = (hex: string) => `${hex}26` // ~15% alpha for #rrggbb
+
 /** One checklist row: tap the circle to toggle done, tap the rest to edit. */
 export function TaskRow({
   task,
@@ -10,12 +12,15 @@ export function TaskRow({
   goals,
   onToggle,
   onOpen,
+  onCheckIn,
 }: {
   task: Task
   completed: boolean
   goals: Map<string, Goal>
   onToggle: () => void
   onOpen: () => void
+  /** shown on completed rows with linked goals */
+  onCheckIn?: () => void
 }) {
   const linkedGoals = task.goalIds
     .map((id) => goals.get(id))
@@ -31,8 +36,9 @@ export function TaskRow({
       >
         <span
           className={`flex h-[26px] w-[26px] items-center justify-center rounded-full border-2 transition-colors ${
-            completed ? 'border-good bg-good text-white' : 'border-ink-dim/50 text-transparent'
+            completed ? 'border-good bg-good text-white' : 'text-transparent'
           }`}
+          style={!completed ? { borderColor: task.color ?? 'var(--line)' } : undefined}
         >
           <Icon name="check" size={15} strokeWidth={3.5} />
         </span>
@@ -40,7 +46,7 @@ export function TaskRow({
       <button
         type="button"
         onClick={onOpen}
-        className="flex min-w-0 flex-1 items-center justify-between gap-2 py-3 pr-4 text-left"
+        className="flex min-w-0 flex-1 items-center justify-between gap-2 py-3 pr-3 text-left"
       >
         <span className="min-w-0">
           <span
@@ -48,6 +54,7 @@ export function TaskRow({
               completed ? 'text-ink-dim line-through' : ''
             }`}
           >
+            {task.icon && <span className="mr-1.5">{task.icon}</span>}
             {task.title}
           </span>
           <span className="mt-0.5 flex items-center gap-x-2 text-[12px] text-ink-dim">
@@ -62,7 +69,12 @@ export function TaskRow({
               {linkedGoals.map((g) => (
                 <span
                   key={g.id}
-                  className="rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-medium text-accent"
+                  className="rounded-full px-2 py-0.5 text-[11px] font-medium"
+                  style={
+                    g.color
+                      ? { background: tint(g.color), color: g.color }
+                      : { background: 'var(--accent-soft)', color: 'var(--accent)' }
+                  }
                 >
                   {g.title}
                 </span>
@@ -72,6 +84,16 @@ export function TaskRow({
         </span>
         <Icon name="chevron-right" size={17} className="shrink-0 text-ink-dim/60" />
       </button>
+      {completed && linkedGoals.length > 0 && onCheckIn && (
+        <button
+          type="button"
+          aria-label="Add a check-in"
+          onClick={onCheckIn}
+          className="mr-3 flex items-center self-center rounded-full bg-accent-soft p-2.5 text-accent"
+        >
+          <Icon name="flag" size={16} strokeWidth={2.5} />
+        </button>
+      )}
     </div>
   )
 }

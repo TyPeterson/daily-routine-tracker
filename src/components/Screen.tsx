@@ -21,7 +21,9 @@ export function Screen({
 }) {
   return (
     <PullToRefresh onRefresh={checkForUpdates} className="h-full">
-      <header className="px-5 pt-4 pb-3">
+      {/* header sits below the status bar; content scrolls edge-to-edge under it */}
+      <header className="pt-safe px-5 pb-3">
+        <div className="pt-3" />
         {onBack && (
           <button
             type="button"

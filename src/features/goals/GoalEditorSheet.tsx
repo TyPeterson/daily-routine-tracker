@@ -1,7 +1,10 @@
 import { useState } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
 import { Sheet } from '../../components/Sheet'
 import { Group, Row, SectionLabel, Segmented, Toggle } from '../../components/forms'
-import { createGoal, deleteGoal, updateGoal } from '../../db/repo'
+import { ColorPicker } from '../../components/pickers'
+import { db } from '../../db/schema'
+import { archiveGoal, createGoal, deleteGoal, unarchiveGoal, updateGoal } from '../../db/repo'
 import type { Goal, MetricDirection } from '../../db/models'
 import { addDaysStr, todayStr } from '../../domain/dates'
 import { useActiveGoals } from '../../hooks/useGoals'
@@ -39,9 +42,13 @@ export function GoalEditorSheet({
   onClose: () => void
 }) {
   const allGoals = useActiveGoals() ?? []
+  const subGoalCount =
+    useLiveQuery(
+      async () => (goal ? db.goals.where('parentGoalId').equals(goal.id).count() : 0),
+      [goal?.id],
+    ) ?? 0
 
   const [title, setTitle] = useState(goal?.title ?? '')
-  const [description, setDescription] = useState(goal?.description ?? '')
   const [hasTargetDate, setHasTargetDate] = useState(goal?.targetDate != null)
   const [targetDate, setTargetDate] = useState(goal?.targetDate ?? addDaysStr(todayStr(), 90))
   const [hasMetric, setHasMetric] = useState(goal?.metric != null)
@@ -53,6 +60,7 @@ export function GoalEditorSheet({
   const [targetValue, setTargetValue] = useState(goal?.metric?.targetValue?.toString() ?? '')
   const [parentId, setParentId] = useState(goal?.parentGoalId ?? defaultParentId ?? '')
   const [completed, setCompleted] = useState(goal?.completedAt != null)
+  const [color, setColor] = useState<string | undefined>(goal?.color)
 
   const forbiddenParents = goal ? descendantIds(goal.id, allGoals) : new Set<string>()
   const parentOptions = allGoals.filter((g) => !forbiddenParents.has(g.id))
@@ -62,7 +70,7 @@ export function GoalEditorSheet({
   const save = async () => {
     const payload = {
       title: title.trim(),
-      description: description.trim(),
+      color,
       parentGoalId: parentId || undefined,
       targetDate: hasTargetDate ? targetDate : undefined,
       metric: hasMetric
@@ -76,7 +84,22 @@ export function GoalEditorSheet({
       completedAt: completed ? (goal?.completedAt ?? Date.now()) : undefined,
     }
     if (goal) await updateGoal(goal.id, payload)
-    else await createGoal(payload)
+    else await createGoal({ ...payload, description: '' })
+    onClose()
+  }
+
+  const toggleArchive = async () => {
+    if (!goal) return
+    if (goal.archivedAt != null) {
+      await unarchiveGoal(goal.id)
+    } else {
+      const warning =
+        subGoalCount > 0
+          ? `“${goal.title}” has ${subGoalCount} sub-goal${subGoalCount === 1 ? '' : 's'} that will stay active. Archive it anyway?`
+          : `Archive “${goal.title}”? You can find it under Archived on the Goals tab.`
+      if (!window.confirm(warning)) return
+      await archiveGoal(goal.id)
+    }
     onClose()
   }
 
@@ -101,13 +124,7 @@ export function GoalEditorSheet({
             autoFocus={!goal}
             className="w-full bg-transparent px-4 py-3 text-[17px] font-medium outline-none placeholder:text-ink-dim/70"
           />
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Why does this matter?"
-            rows={2}
-            className="w-full resize-none bg-transparent px-4 py-3 text-[15px] outline-none placeholder:text-ink-dim/70"
-          />
+          <ColorPicker value={color} onChange={setColor} />
         </Group>
 
         <section>
@@ -208,6 +225,15 @@ export function GoalEditorSheet({
           >
             {goal ? 'Save Changes' : 'Add Goal'}
           </button>
+          {goal && (
+            <button
+              type="button"
+              onClick={() => void toggleArchive()}
+              className="w-full rounded-2xl bg-surface py-3 text-[15px] font-medium text-ink-dim"
+            >
+              {goal.archivedAt != null ? 'Unarchive Goal' : 'Archive Goal'}
+            </button>
+          )}
           {goal && (
             <button
               type="button"

@@ -1,8 +1,11 @@
 import { useState } from 'react'
 import { getDate, getDay } from 'date-fns'
 import { Icon } from '../../components/Icon'
+import { NumberField } from '../../components/NumberField'
 import { Sheet } from '../../components/Sheet'
+import { TimeSelect } from '../../components/TimeSelect'
 import { Group, Row, SectionLabel, Segmented, Toggle } from '../../components/forms'
+import { ColorPicker, EmojiPicker } from '../../components/pickers'
 import { createTask, deleteTask, updateTask } from '../../db/repo'
 import type { Task } from '../../db/models'
 import { addDaysStr, fromDateStr, type DateStr } from '../../domain/dates'
@@ -10,12 +13,6 @@ import type { Recurrence } from '../../domain/recurrence'
 import { useActiveGoals } from '../../hooks/useGoals'
 
 const WEEKDAY_CHIPS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
-
-const clampInt = (raw: string, min: number, max: number, fallback: number) => {
-  const n = Number.parseInt(raw, 10)
-  if (Number.isNaN(n)) return fallback
-  return Math.min(max, Math.max(min, n))
-}
 
 export function TaskEditorSheet({
   task,
@@ -45,6 +42,8 @@ export function TaskEditorSheet({
   const [hasTime, setHasTime] = useState(task?.timeOfDay != null)
   const [timeOfDay, setTimeOfDay] = useState(task?.timeOfDay ?? '08:00')
   const [goalIds, setGoalIds] = useState<string[]>(task?.goalIds ?? [])
+  const [color, setColor] = useState<string | undefined>(task?.color)
+  const [icon, setIcon] = useState<string | undefined>(task?.icon)
 
   const repeats = recType !== 'none'
   const canSave = title.trim().length > 0 && (recType !== 'weekly' || weekdays.length > 0)
@@ -71,6 +70,8 @@ export function TaskEditorSheet({
       endDate: repeats && hasEnd ? endDate : undefined,
       timeOfDay: hasTime ? timeOfDay : undefined,
       goalIds,
+      color,
+      icon,
     }
     if (task) await updateTask(task.id, payload)
     else await createTask(payload)
@@ -129,15 +130,7 @@ export function TaskEditorSheet({
             <Group className="mt-3">
               <Row label="Every">
                 <span className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    min={1}
-                    max={365}
-                    value={interval}
-                    onChange={(e) => setIntervalN(clampInt(e.target.value, 1, 365, 1))}
-                    className="w-16 rounded-lg bg-surface2 px-2 py-1 text-center outline-none"
-                  />
+                  <NumberField value={interval} onCommit={setIntervalN} min={1} max={365} />
                   <span className="text-ink-dim">
                     {interval === 1 ? intervalUnit : `${intervalUnit}s`}
                   </span>
@@ -161,15 +154,7 @@ export function TaskEditorSheet({
               )}
               {recType === 'monthly' && (
                 <Row label="On day">
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    min={1}
-                    max={31}
-                    value={dayOfMonth}
-                    onChange={(e) => setDayOfMonth(clampInt(e.target.value, 1, 31, 1))}
-                    className="w-16 rounded-lg bg-surface2 px-2 py-1 text-center outline-none"
-                  />
+                  <NumberField value={dayOfMonth} onCommit={setDayOfMonth} min={1} max={31} />
                 </Row>
               )}
             </Group>
@@ -189,14 +174,7 @@ export function TaskEditorSheet({
             </Row>
             <Row label="Time of day">
               <span className="flex items-center gap-3">
-                {hasTime && (
-                  <input
-                    type="time"
-                    value={timeOfDay}
-                    onChange={(e) => e.target.value && setTimeOfDay(e.target.value)}
-                    className="text-right font-medium text-accent outline-none"
-                  />
-                )}
+                {hasTime && <TimeSelect value={timeOfDay} onChange={setTimeOfDay} />}
                 <Toggle on={hasTime} onChange={setHasTime} />
               </span>
             </Row>
@@ -216,6 +194,14 @@ export function TaskEditorSheet({
                 </span>
               </Row>
             )}
+          </Group>
+        </section>
+
+        <section>
+          <SectionLabel>Appearance</SectionLabel>
+          <Group>
+            <EmojiPicker value={icon} onChange={setIcon} />
+            <ColorPicker value={color} onChange={setColor} />
           </Group>
         </section>
 

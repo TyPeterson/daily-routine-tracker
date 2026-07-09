@@ -15,6 +15,10 @@ export interface Task {
   timeOfDay?: string
   /** goals this task contributes to (many-to-many) */
   goalIds: string[]
+  /** display color (hex) used on calendar chips and rows */
+  color?: string
+  /** single emoji shown next to the title */
+  icon?: string
   createdAt: number
   archivedAt?: number
 }
@@ -47,16 +51,23 @@ export interface Goal {
   parentGoalId?: string
   targetDate?: DateStr
   metric?: GoalMetric
+  /** display color (hex) used on progress bars and chips */
+  color?: string
   createdAt: number
   completedAt?: number
   archivedAt?: number
 }
 
-/** Ordered milestone inside a goal (run 1 mi → 5 mi → marathon). */
+/**
+ * Milestone value on the way to a metric goal (½ mi → 1 mi → 5 mi).
+ * Achievement is derived: any check-in value crossing targetValue marks it
+ * reached (repo.recomputeCheckpointAchievements keeps this consistent).
+ */
 export interface Checkpoint {
   id: string
   goalId: string
-  title: string
+  /** legacy label; new checkpoints are identified by their value alone */
+  title?: string
   /** value in the goal's metric unit that this milestone represents */
   targetValue?: number
   sortOrder: number
@@ -71,6 +82,6 @@ export interface CheckIn {
   /** measurement in the goal's metric unit, if any */
   value?: number
   notes: string
-  /** set when this check-in marked a checkpoint as reached */
+  /** legacy (pre-auto-detection); no longer written */
   checkpointId?: string
 }

@@ -1,6 +1,16 @@
 import { startOfWeek, subWeeks } from 'date-fns'
 import { fromDateStr, toDateStr, type DateStr } from './dates'
-import type { CheckIn, Checkpoint, Goal, GoalMetric } from '../db/models'
+import type { CheckIn, Checkpoint, Goal, GoalMetric, MetricDirection } from '../db/models'
+
+/** Has `value` crossed `target` in the direction progress points? */
+export function valueCrosses(direction: MetricDirection, value: number, target: number): boolean {
+  return direction === 'increase' ? value >= target : value <= target
+}
+
+/** Does this check-in value reach the goal's final target? */
+export function goalTargetReached(metric: GoalMetric, value: number): boolean {
+  return metric.targetValue != null && valueCrosses(metric.direction, value, metric.targetValue)
+}
 
 export function latestValuedCheckIn(checkIns: CheckIn[]): CheckIn | undefined {
   return checkIns

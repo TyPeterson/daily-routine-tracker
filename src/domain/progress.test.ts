@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { goalPercent, metricPercent, weeklyCompletionCounts } from './progress'
+import {
+  goalPercent,
+  goalTargetReached,
+  metricPercent,
+  valueCrosses,
+  weeklyCompletionCounts,
+} from './progress'
 import type { CheckIn, Checkpoint, Goal } from '../db/models'
 
 const checkIn = (value: number | undefined, at: number): CheckIn => ({
@@ -78,6 +84,28 @@ describe('goalPercent', () => {
 
   it('is null when there is nothing to measure', () => {
     expect(goalPercent(goal({}), [], [])).toBeNull()
+  })
+})
+
+describe('valueCrosses / goalTargetReached', () => {
+  it('increase direction: reached at or above the target', () => {
+    expect(valueCrosses('increase', 0.5, 0.5)).toBe(true)
+    expect(valueCrosses('increase', 0.65, 0.5)).toBe(true)
+    expect(valueCrosses('increase', 0.4, 0.5)).toBe(false)
+  })
+
+  it('decrease direction: reached at or below the target', () => {
+    expect(valueCrosses('decrease', 190, 190)).toBe(true)
+    expect(valueCrosses('decrease', 185, 190)).toBe(true)
+    expect(valueCrosses('decrease', 191, 190)).toBe(false)
+  })
+
+  it('goalTargetReached checks the final target', () => {
+    const metric = { unit: 'lbs', startValue: 200, targetValue: 180, direction: 'decrease' as const }
+    expect(goalTargetReached(metric, 179)).toBe(true)
+    expect(goalTargetReached(metric, 180)).toBe(true)
+    expect(goalTargetReached(metric, 181)).toBe(false)
+    expect(goalTargetReached({ unit: 'x', direction: 'increase' }, 100)).toBe(false) // no target
   })
 })
 

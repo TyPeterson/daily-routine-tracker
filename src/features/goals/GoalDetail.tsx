@@ -1,20 +1,14 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { format } from 'date-fns'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { useNavigate, useParams } from 'react-router-dom'
-import { EmptyState } from '../../components/EmptyState'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Icon } from '../../components/Icon'
 import { ProgressBar } from '../../components/ProgressBar'
 import { Screen } from '../../components/Screen'
 import { Group, SectionLabel } from '../../components/forms'
 import { db } from '../../db/schema'
-import {
-  addCheckpoint,
-  deleteCheckIn,
-  deleteCheckpoint,
-  toggleCheckpointAchieved,
-} from '../../db/repo'
-import type { Task } from '../../db/models'
+import { addCheckpoint, deleteCheckIn, deleteCheckpoint } from '../../db/repo'
+import type { Checkpoint, Task } from '../../db/models'
 import { fromDateStr, todayStr } from '../../domain/dates'
 import { describeRecurrence } from '../../domain/recurrence'
 import { goalPercent, latestValuedCheckIn, weeklyCompletionCounts } from '../../domain/progress'
@@ -28,6 +22,11 @@ const ProgressChart = lazy(() =>
 
 const CONSISTENCY_WEEKS = 8
 
+export function checkpointLabel(cp: Checkpoint, unit: string): string {
+  if (cp.title) return cp.title
+  return cp.targetValue != null ? `${cp.targetValue} ${unit}`.trim() : 'Checkpoint'
+}
+
 /** Trailing-weeks completion mini bars for one linked task. */
 function TaskConsistency({ task, completionDates }: { task: Task; completionDates: string[] }) {
   const buckets = weeklyCompletionCounts(completionDates, CONSISTENCY_WEEKS, todayStr())
@@ -35,15 +34,19 @@ function TaskConsistency({ task, completionDates }: { task: Task; completionDate
   return (
     <div className="flex items-center gap-3 px-4 py-3">
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[15px] font-medium">{task.title}</p>
+        <p className="truncate text-[15px] font-medium">
+          {task.icon && <span className="mr-1">{task.icon}</span>}
+          {task.title}
+        </p>
         <p className="text-[12px] text-ink-dim">{describeRecurrence(task.recurrence)}</p>
       </div>
       <div className="flex h-8 shrink-0 items-end gap-[3px]" title="Completions, last 8 weeks">
         {buckets.map((b) => (
           <div
             key={b.weekStart}
-            className="w-2 rounded-sm bg-accent"
+            className="w-2 rounded-sm"
             style={{
+              background: task.color ?? 'var(--accent)',
               height: b.count === 0 ? 3 : Math.max(6, (b.count / max) * 32),
               opacity: b.count === 0 ? 0.2 : 0.45 + 0.55 * (b.count / max),
             }}
@@ -57,23 +60,18 @@ function TaskConsistency({ task, completionDates }: { task: Task; completionDate
 export default function GoalDetail() {
   const { goalId = '' } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
+  const backLabel = (location.state as { backLabel?: string } | null)?.backLabel
 
   // undefined = still loading, null = goal doesn't exist
   const goal = useLiveQuery(async () => (await db.goals.get(goalId)) ?? null, [goalId])
   const checkIns = useLiveQuery(() => db.checkIns.where('goalId').equals(goalId).sortBy('at'), [goalId])
   const checkpoints = useLiveQuery(
-    async () =>
-      (await db.checkpoints.where('goalId').equals(goalId).toArray()).sort(
-        (a, b) => a.sortOrder - b.sortOrder,
-      ),
+    () => db.checkpoints.where('goalId').equals(goalId).toArray(),
     [goalId],
   )
   const subGoals = useLiveQuery(() => db.goals.where('parentGoalId').equals(goalId).toArray(), [goalId])
   const tasks = useLiveQuery(() => db.tasks.where('goalIds').equals(goalId).toArray(), [goalId])
-  const parent = useLiveQuery(
-    async () => (goal?.parentGoalId ? db.goals.get(goal.parentGoalId) : undefined),
-    [goal?.parentGoalId],
-  )
   const taskIdsKey = (tasks ?? []).map((t) => t.id).sort().join(',')
   const completions = useLiveQuery(async () => {
     const ids = taskIdsKey ? taskIdsKey.split(',') : []
@@ -97,39 +95,50 @@ export default function GoalDetail() {
   const [editorOpen, setEditorOpen] = useState(false)
   const [checkInOpen, setCheckInOpen] = useState(false)
   const [subGoalEditorOpen, setSubGoalEditorOpen] = useState(false)
-  const [newCpTitle, setNewCpTitle] = useState('')
   const [newCpValue, setNewCpValue] = useState('')
 
-  if (goal === undefined) return null
-  if (goal === null) {
-    return (
-      <Screen title="Goal" onBack={() => navigate('/goals')} backLabel="Goals">
-        <EmptyState icon="target" title="Goal not found" />
-      </Screen>
-    )
-  }
+  // deleted (or never existed) → land back on the goals list
+  useEffect(() => {
+    if (goal === null) navigate('/goals', { replace: true })
+  }, [goal, navigate])
+
+  if (goal == null) return null
 
   const percent = goalPercent(goal, checkIns ?? [], checkpoints ?? [])
   const latest = latestValuedCheckIn(checkIns ?? [])
   const valuedCheckIns = (checkIns ?? []).filter((c) => c.value != null)
-  const checkpointById = new Map((checkpoints ?? []).map((c) => [c.id, c]))
   const unit = goal.metric?.unit ?? ''
+  const direction = goal.metric?.direction ?? 'increase'
+
+  // milestones in the order you'll hit them (descending for weight-loss style)
+  const sortedCheckpoints = [...(checkpoints ?? [])].sort((a, b) => {
+    if (a.targetValue == null || b.targetValue == null) return a.sortOrder - b.sortOrder
+    return direction === 'increase' ? a.targetValue - b.targetValue : b.targetValue - a.targetValue
+  })
+  const showCheckpoints = goal.metric != null || sortedCheckpoints.length > 0
+
+  const goBack = () => {
+    // real history back when possible so back mirrors how you got here
+    if (window.history.length > 1 && location.key !== 'default') navigate(-1)
+    else navigate('/goals')
+  }
 
   const addCp = async () => {
-    const title = newCpTitle.trim()
-    if (!title) return
-    const value = newCpValue.trim() === '' ? undefined : Number(newCpValue)
-    await addCheckpoint(goalId, title, Number.isNaN(value as number) ? undefined : value)
-    setNewCpTitle('')
+    const value = Number(newCpValue)
+    if (newCpValue.trim() === '' || Number.isNaN(value)) return
+    await addCheckpoint(goalId, value)
     setNewCpValue('')
   }
+
+  const cpValue = Number(newCpValue)
+  const canAddCp = newCpValue.trim() !== '' && !Number.isNaN(cpValue)
 
   return (
     <>
       <Screen
         title={goal.title}
-        onBack={() => navigate(parent ? `/goals/${parent.id}` : '/goals')}
-        backLabel={parent ? parent.title : 'Goals'}
+        onBack={goBack}
+        backLabel={backLabel ?? 'Back'}
         right={
           <button
             type="button"
@@ -142,10 +151,18 @@ export default function GoalDetail() {
         }
       >
         <div className="space-y-5">
-          {(goal.description || goal.targetDate || goal.completedAt != null) && (
+          {(goal.description ||
+            goal.targetDate ||
+            goal.completedAt != null ||
+            goal.archivedAt != null) && (
             <div className="px-1">
               {goal.description && <p className="text-[14px] text-ink-dim">{goal.description}</p>}
               <div className="mt-2 flex flex-wrap gap-1.5">
+                {goal.archivedAt != null && (
+                  <span className="rounded-full bg-surface2 px-2.5 py-1 text-[12px] font-semibold text-ink-dim">
+                    Archived
+                  </span>
+                )}
                 {goal.completedAt != null && (
                   <span className="rounded-full bg-good-soft px-2.5 py-1 text-[12px] font-semibold text-good">
                     Completed {format(goal.completedAt, 'MMM d, yyyy')}
@@ -171,7 +188,7 @@ export default function GoalDetail() {
               )}
             </div>
             <div className="mt-2.5 flex items-center gap-3">
-              <ProgressBar percent={percent} className="flex-1" />
+              <ProgressBar percent={percent} color={goal.color} className="flex-1" />
               <span className="text-[15px] font-bold">
                 {percent != null ? `${Math.round(percent)}%` : '—'}
               </span>
@@ -194,81 +211,81 @@ export default function GoalDetail() {
                     checkIns={valuedCheckIns}
                     metric={goal.metric}
                     checkpoints={checkpoints ?? []}
+                    color={goal.color}
                   />
                 </Suspense>
               </div>
             </section>
           )}
 
-          <section>
-            <SectionLabel>Checkpoints</SectionLabel>
-            <Group>
-              {(checkpoints ?? []).map((cp) => (
-                <div key={cp.id} className="flex items-center gap-3 px-4 py-3">
-                  <button
-                    type="button"
-                    aria-label={cp.achievedAt ? 'Mark not reached' : 'Mark reached'}
-                    onClick={() => void toggleCheckpointAchieved(cp.id)}
-                    className={cp.achievedAt ? 'text-good' : 'text-ink-dim/40'}
-                  >
-                    <Icon name="flag" size={20} />
-                  </button>
-                  <div className="min-w-0 flex-1">
-                    <p
-                      className={`truncate text-[15px] font-medium ${
-                        cp.achievedAt ? 'text-ink-dim line-through' : ''
-                      }`}
+          {showCheckpoints && (
+            <section>
+              <SectionLabel>Checkpoints</SectionLabel>
+              <Group>
+                {sortedCheckpoints.map((cp) => (
+                  <div key={cp.id} className="flex items-center gap-3 px-4 py-3">
+                    <Icon
+                      name="flag"
+                      size={20}
+                      className={cp.achievedAt != null ? 'text-good' : 'text-ink-dim/40'}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p
+                        className={`truncate text-[15px] font-medium ${
+                          cp.achievedAt != null ? 'text-ink-dim line-through' : ''
+                        }`}
+                      >
+                        {checkpointLabel(cp, unit)}
+                      </p>
+                      {cp.achievedAt != null && (
+                        <p className="text-[12px] text-good">
+                          Reached {format(cp.achievedAt, 'MMM d, yyyy')}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="Delete checkpoint"
+                      onClick={() => {
+                        if (window.confirm(`Delete checkpoint “${checkpointLabel(cp, unit)}”?`))
+                          void deleteCheckpoint(cp.id)
+                      }}
+                      className="p-1 text-ink-dim/50"
                     >
-                      {cp.title}
-                    </p>
-                    <p className="text-[12px] text-ink-dim">
-                      {cp.targetValue != null && `${cp.targetValue} ${unit}`}
-                      {cp.targetValue != null && cp.achievedAt != null && ' · '}
-                      {cp.achievedAt != null && `reached ${format(cp.achievedAt, 'MMM d')}`}
-                    </p>
+                      <Icon name="trash" size={16} />
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    aria-label="Delete checkpoint"
-                    onClick={() => {
-                      if (window.confirm(`Delete checkpoint “${cp.title}”?`))
-                        void deleteCheckpoint(cp.id)
-                    }}
-                    className="p-1 text-ink-dim/50"
-                  >
-                    <Icon name="trash" size={16} />
-                  </button>
-                </div>
-              ))}
-              <div className="flex items-center gap-2 px-4 py-3">
-                <input
-                  value={newCpTitle}
-                  onChange={(e) => setNewCpTitle(e.target.value)}
-                  placeholder="Add a checkpoint…"
-                  className="min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-ink-dim/60"
-                />
+                ))}
                 {goal.metric && (
-                  <input
-                    value={newCpValue}
-                    onChange={(e) => setNewCpValue(e.target.value)}
-                    type="number"
-                    step="any"
-                    inputMode="decimal"
-                    placeholder={unit}
-                    className="w-20 rounded-lg bg-surface2 px-2 py-1 text-right text-[14px] outline-none placeholder:text-ink-dim/60"
-                  />
+                  <div className="flex items-center gap-2 px-4 py-2.5">
+                    <input
+                      value={newCpValue}
+                      onChange={(e) => setNewCpValue(e.target.value)}
+                      type="number"
+                      step="any"
+                      inputMode="decimal"
+                      placeholder={`Milestone value (${unit})`}
+                      className="min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-ink-dim/60"
+                    />
+                    <button
+                      type="button"
+                      aria-label="Add checkpoint"
+                      disabled={!canAddCp}
+                      onClick={() => void addCp()}
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-white disabled:opacity-35"
+                    >
+                      <Icon name="plus" size={17} strokeWidth={2.5} />
+                    </button>
+                  </div>
                 )}
-                <button
-                  type="button"
-                  disabled={!newCpTitle.trim()}
-                  onClick={() => void addCp()}
-                  className="text-[15px] font-semibold text-accent disabled:opacity-40"
-                >
-                  Add
-                </button>
-              </div>
-            </Group>
-          </section>
+              </Group>
+              {goal.metric && (
+                <p className="mt-1.5 px-2 text-[12px] text-ink-dim">
+                  Checkpoints are marked reached automatically when a check-in crosses them.
+                </p>
+              )}
+            </section>
+          )}
 
           <section>
             <SectionLabel>Sub-goals</SectionLabel>
@@ -279,13 +296,15 @@ export default function GoalDetail() {
                   <button
                     key={sub.id}
                     type="button"
-                    onClick={() => navigate(`/goals/${sub.id}`)}
+                    onClick={() =>
+                      navigate(`/goals/${sub.id}`, { state: { backLabel: goal.title } })
+                    }
                     className="flex min-h-12 w-full items-center gap-3 px-4 py-2.5 text-left"
                   >
                     <span className="min-w-0 flex-1 truncate text-[15px] font-medium">
                       {sub.title}
                     </span>
-                    <ProgressBar percent={subPercent} className="w-20" />
+                    <ProgressBar percent={subPercent} color={sub.color} className="w-20" />
                     <span className="w-9 text-right text-[12px] font-medium text-ink-dim">
                       {subPercent != null ? `${Math.round(subPercent)}%` : '—'}
                     </span>
@@ -330,7 +349,9 @@ export default function GoalDetail() {
               <SectionLabel>Check-in history</SectionLabel>
               <Group>
                 {[...(checkIns ?? [])].reverse().map((ci) => {
-                  const cp = ci.checkpointId ? checkpointById.get(ci.checkpointId) : undefined
+                  const hitCheckpoints = (checkpoints ?? []).filter(
+                    (cp) => cp.achievedAt === ci.at,
+                  )
                   return (
                     <div key={ci.id} className="flex items-start gap-3 px-4 py-3">
                       <div className="min-w-0 flex-1">
@@ -340,14 +361,17 @@ export default function GoalDetail() {
                         {ci.value != null && ci.notes && (
                           <p className="mt-0.5 text-[13px] text-ink-dim">{ci.notes}</p>
                         )}
-                        <p className="mt-0.5 flex items-center gap-1.5 text-[12px] text-ink-dim">
+                        <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[12px] text-ink-dim">
                           {format(ci.at, 'MMM d, yyyy')}
-                          {cp && (
-                            <span className="flex items-center gap-1 rounded-full bg-good-soft px-2 py-0.5 text-[11px] font-medium text-good">
+                          {hitCheckpoints.map((cp) => (
+                            <span
+                              key={cp.id}
+                              className="flex items-center gap-1 rounded-full bg-good-soft px-2 py-0.5 text-[11px] font-medium text-good"
+                            >
                               <Icon name="flag" size={10} strokeWidth={2.5} />
-                              {cp.title}
+                              {checkpointLabel(cp, unit)}
                             </span>
-                          )}
+                          ))}
                         </p>
                       </div>
                       <button
@@ -370,13 +394,7 @@ export default function GoalDetail() {
       </Screen>
 
       {editorOpen && <GoalEditorSheet goal={goal} onClose={() => setEditorOpen(false)} />}
-      {checkInOpen && (
-        <CheckInSheet
-          goal={goal}
-          checkpoints={checkpoints ?? []}
-          onClose={() => setCheckInOpen(false)}
-        />
-      )}
+      {checkInOpen && <CheckInSheet goalId={goal.id} onClose={() => setCheckInOpen(false)} />}
       {subGoalEditorOpen && (
         <GoalEditorSheet defaultParentId={goalId} onClose={() => setSubGoalEditorOpen(false)} />
       )}
