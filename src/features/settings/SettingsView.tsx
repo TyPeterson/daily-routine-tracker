@@ -8,12 +8,64 @@ import { exportData, importData, type BackupData } from '../../db/repo'
 import { todayStr } from '../../domain/dates'
 import { checkForUpdates } from '../../pwa/useAppUpdate'
 import { applyThemePref, getThemePref, type ThemePref } from '../../theme'
+import {
+  clearSync,
+  getSyncState,
+  publishCalendar,
+  setSyncToken,
+} from './calendarSync'
 
 export default function SettingsView() {
   const [persisted, setPersisted] = useState<boolean | null>(null)
   const [updateStatus, setUpdateStatus] = useState<string | null>(null)
   const [theme, setTheme] = useState<ThemePref>(() => getThemePref())
+  const [sync, setSync] = useState(() => getSyncState())
+  const [tokenInput, setTokenInput] = useState('')
+  const [syncStatus, setSyncStatus] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  const connectCalendar = async () => {
+    const token = tokenInput.trim()
+    if (!token) return
+    setSyncToken(token)
+    setSyncStatus('publishing…')
+    const result = await publishCalendar(true)
+    if (result.ok) {
+      setTokenInput('')
+      setSyncStatus('feed published')
+    } else {
+      clearSync()
+      setSyncStatus(result.error ?? 'failed')
+    }
+    setSync(getSyncState())
+  }
+
+  const syncNow = async () => {
+    setSyncStatus('publishing…')
+    const result = await publishCalendar(true)
+    setSyncStatus(result.ok ? 'up to date' : (result.error ?? 'failed'))
+    setSync(getSyncState())
+  }
+
+  const copyFeed = async () => {
+    if (!sync.feedUrl) return
+    await navigator.clipboard.writeText(sync.feedUrl)
+    setSyncStatus('link copied')
+  }
+
+  const disconnectCalendar = async () => {
+    const ok = await confirmDialog({
+      title: 'disconnect calendar feed?',
+      message:
+        'the token is forgotten and publishing stops. the feed file stays on github until you delete the gist.',
+      confirmLabel: 'disconnect',
+      danger: true,
+    })
+    if (!ok) return
+    clearSync()
+    setSyncStatus(null)
+    setSync(getSyncState())
+  }
 
   const changeTheme = (pref: ThemePref) => {
     setTheme(pref)
@@ -85,7 +137,95 @@ export default function SettingsView() {
         </section>
 
         <section>
-          <SectionLabel index="02">data</SectionLabel>
+          <SectionLabel index="02">calendar feed</SectionLabel>
+          {!sync.configured ? (
+            <>
+              <Group>
+                <div className="p-4 text-[13px] leading-relaxed text-ink-dim">
+                  publish your schedule as a subscription link for apple calendar. it lives in a
+                  secret github gist — unlisted, but anyone with the link can read task titles.
+                  needs a github token with only the <span className="font-bold text-ink">gist</span>{' '}
+                  scope (classic token, github.com → settings → developer settings).
+                </div>
+                <div className="flex items-center gap-2 px-4 py-2.5">
+                  <input
+                    value={tokenInput}
+                    onChange={(e) => setTokenInput(e.target.value)}
+                    type="password"
+                    placeholder="github token"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    className="min-w-0 flex-1 rounded-[7px] border border-edge/50 bg-surface2 px-2.5 py-1.5 text-[14px] outline-none placeholder:text-ink-dim/60"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void connectCalendar()}
+                    className={`key key-primary px-3.5 py-1.5 text-[13px] font-bold ${
+                      tokenInput.trim() ? '' : 'opacity-40'
+                    }`}
+                  >
+                    connect
+                  </button>
+                </div>
+              </Group>
+              {syncStatus && (
+                <p className="mt-1.5 px-1 text-[11px] font-semibold text-ink-dim">{syncStatus}</p>
+              )}
+            </>
+          ) : (
+            <>
+              <Group>
+                <div className="flex items-center gap-2 px-4 py-3">
+                  <Icon name="link" size={15} className="shrink-0 text-accent" />
+                  <span className="min-w-0 flex-1 truncate text-[12px] text-ink-dim">
+                    {sync.feedUrl ?? 'not published yet'}
+                  </span>
+                  {sync.feedUrl && (
+                    <button
+                      type="button"
+                      onClick={() => void copyFeed()}
+                      className="key shrink-0 px-3 py-1.5 text-[12px] font-bold text-accent"
+                    >
+                      copy
+                    </button>
+                  )}
+                </div>
+                {sync.feedUrl && (
+                  <a
+                    href={sync.feedUrl.replace('https://', 'webcal://')}
+                    className="flex min-h-12 w-full items-center justify-between px-4 py-2"
+                  >
+                    <span className="text-[15px]">subscribe in apple calendar</span>
+                    <Icon name="chevron-right" size={15} className="text-ink-dim/60" />
+                  </a>
+                )}
+                <button
+                  type="button"
+                  onClick={() => void syncNow()}
+                  className="flex min-h-12 w-full items-center justify-between px-4 py-2 text-left"
+                >
+                  <span className="text-[15px]">sync now</span>
+                  <span className="text-[12px] text-ink-dim">{syncStatus ?? ''}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void disconnectCalendar()}
+                  className="flex min-h-12 w-full items-center px-4 py-2 text-left"
+                >
+                  <span className="text-[15px] text-danger">disconnect</span>
+                </button>
+              </Group>
+              <p className="mt-1.5 px-1 text-[11px] text-ink-dim">
+                republishes automatically when tasks change while the app is open. apple refreshes
+                subscriptions on its own schedule.
+              </p>
+            </>
+          )}
+        </section>
+
+        <section>
+          <SectionLabel index="03">data</SectionLabel>
           <Group>
             <button
               type="button"
@@ -128,7 +268,7 @@ export default function SettingsView() {
         </section>
 
         <section>
-          <SectionLabel index="03">app</SectionLabel>
+          <SectionLabel index="04">app</SectionLabel>
           <Group>
             <Row label="version">
               <span className="text-[14px] font-bold text-accent">v{__APP_VERSION__}</span>

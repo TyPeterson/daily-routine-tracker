@@ -4,6 +4,7 @@ import { BottomNav } from './components/BottomNav'
 import { DialogHost } from './components/Dialog'
 import { UpdateBanner } from './components/UpdateBanner'
 import { pinViewportListener } from './hooks/useVisualViewport'
+import { startCalendarAutoSync } from './features/settings/calendarSync'
 import TodayView from './features/today/TodayView'
 import CalendarView from './features/calendar/CalendarView'
 import GoalsList from './features/goals/GoalsList'
@@ -28,9 +29,12 @@ export default function App() {
       }, 350)
     }
     document.addEventListener('focusin', reveal)
+    // keep the subscribed calendar feed fresh while the app is open
+    const stopCalendarSync = startCalendarAutoSync()
     return () => {
       unpin()
       document.removeEventListener('focusin', reveal)
+      stopCalendarSync()
     }
   }, [])
 

@@ -29,6 +29,11 @@ account. All data lives on-device in IndexedDB; there is no backend.
   between days/months, safe-area aware, works fully offline
 - **Backups** — Settings → Export/Import a JSON backup (data exists only on
   the device, so export occasionally)
+- **Apple Calendar feed** — Settings → calendar feed publishes the task
+  schedule as an ICS file in a secret GitHub gist (needs a classic token with
+  only the `gist` scope). Subscribe to the link in Apple Calendar; recurrence
+  maps to native RRULEs and the app republishes automatically when tasks
+  change while it's open.
 
 ## Development
 
