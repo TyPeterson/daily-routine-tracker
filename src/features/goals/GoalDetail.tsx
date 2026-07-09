@@ -123,6 +123,10 @@ export default function GoalDetail() {
     else navigate('/goals')
   }
 
+  // silkscreen indexes follow whichever sections actually render
+  let sectionCounter = 0
+  const nextIndex = () => String(++sectionCounter).padStart(2, '0')
+
   const addCp = async () => {
     const value = Number(newCpValue)
     if (newCpValue.trim() === '' || Number.isNaN(value)) return
@@ -207,7 +211,7 @@ export default function GoalDetail() {
 
           {valuedCheckIns.length > 0 && (
             <section>
-              <SectionLabel index="01">over time</SectionLabel>
+              <SectionLabel index={nextIndex()}>over time</SectionLabel>
               <div className="module p-3 pt-4">
                 <Suspense fallback={<div className="h-[210px]" />}>
                   <ProgressChart
@@ -223,7 +227,7 @@ export default function GoalDetail() {
 
           {showCheckpoints && (
             <section>
-              <SectionLabel index="02">checkpoints</SectionLabel>
+              <SectionLabel index={nextIndex()}>milestones</SectionLabel>
               <Group>
                 {sortedCheckpoints.map((cp) => (
                   <div key={cp.id} className="flex items-center gap-3 px-4 py-3">
@@ -249,9 +253,9 @@ export default function GoalDetail() {
                     </div>
                     <button
                       type="button"
-                      aria-label="Delete checkpoint"
+                      aria-label="Delete milestone"
                       onClick={() => {
-                        if (window.confirm(`Delete checkpoint “${checkpointLabel(cp, unit)}”?`))
+                        if (window.confirm(`Delete milestone “${checkpointLabel(cp, unit)}”?`))
                           void deleteCheckpoint(cp.id)
                       }}
                       className="p-1 text-ink-dim/50"
@@ -273,7 +277,7 @@ export default function GoalDetail() {
                     />
                     <button
                       type="button"
-                      aria-label="Add checkpoint"
+                      aria-label="Add milestone"
                       disabled={!canAddCp}
                       onClick={() => void addCp()}
                       className="key key-primary flex h-8 w-8 items-center justify-center !rounded-full"
@@ -285,14 +289,15 @@ export default function GoalDetail() {
               </Group>
               {goal.metric && (
                 <p className="mt-1.5 px-1 text-[11px] text-ink-dim">
-                  checkpoints are marked reached automatically when a check-in crosses them
+                  milestones are reached — and un-reached — automatically as check-ins cross them
                 </p>
               )}
             </section>
           )}
 
+          {goal.parentGoalId == null && (
           <section>
-            <SectionLabel index="03">sub-goals</SectionLabel>
+            <SectionLabel index={nextIndex()}>sub-goals</SectionLabel>
             <Group>
               {(subGoals ?? []).map((sub) => {
                 const subPercent = subGoalData?.get(sub.id) ?? null
@@ -325,10 +330,11 @@ export default function GoalDetail() {
               </button>
             </Group>
           </section>
+          )}
 
           {(tasks ?? []).filter((t) => !t.archivedAt).length > 0 && (
             <section>
-              <SectionLabel index="04">linked tasks</SectionLabel>
+              <SectionLabel index={nextIndex()}>linked tasks</SectionLabel>
               <Group>
                 {(tasks ?? [])
                   .filter((t) => !t.archivedAt)
@@ -350,7 +356,7 @@ export default function GoalDetail() {
 
           {(checkIns ?? []).length > 0 && (
             <section>
-              <SectionLabel index="05">check-in history</SectionLabel>
+              <SectionLabel index={nextIndex()}>check-in history</SectionLabel>
               <Group>
                 {[...(checkIns ?? [])].reverse().map((ci) => {
                   const hitCheckpoints = (checkpoints ?? []).filter(

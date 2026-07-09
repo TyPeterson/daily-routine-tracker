@@ -53,6 +53,14 @@ export function ColorPicker({
   )
 }
 
+/** Last grapheme cluster of a string — one full emoji, however many code points. */
+function lastGrapheme(s: string): string | undefined {
+  const trimmed = s.trim()
+  if (!trimmed) return undefined
+  const parts = [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(trimmed)]
+  return parts.at(-1)?.segment
+}
+
 export function EmojiPicker({
   value,
   onChange,
@@ -60,6 +68,7 @@ export function EmojiPicker({
   value?: string
   onChange: (emoji: string | undefined) => void
 }) {
+  const isCustom = value != null && !PRESET_EMOJI.includes(value)
   return (
     <div className="flex flex-wrap items-center gap-1.5 px-4 py-3">
       <button
@@ -84,6 +93,18 @@ export function EmojiPicker({
           {e}
         </button>
       ))}
+      {/* type any emoji from the keyboard */}
+      <input
+        value={isCustom ? value : ''}
+        onChange={(e) => onChange(lastGrapheme(e.target.value))}
+        placeholder="+"
+        aria-label="Custom emoji"
+        autoCapitalize="none"
+        autoCorrect="off"
+        className={`h-9 w-12 rounded-[8px] border text-center text-[17px] outline-none placeholder:text-ink-dim ${
+          isCustom ? 'border-accent bg-accent-soft ring-2 ring-accent' : 'border-edge/40 bg-surface2'
+        }`}
+      />
     </div>
   )
 }

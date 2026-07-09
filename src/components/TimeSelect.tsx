@@ -1,12 +1,15 @@
+import { Wheel } from './Wheel'
+
 const pad = (n: number) => String(n).padStart(2, '0')
 
-const HOURS = Array.from({ length: 12 }, (_, i) => i + 1)
-const MINUTES = Array.from({ length: 12 }, (_, i) => i * 5)
+const HOURS = Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: String(i + 1) }))
+const MINUTES = Array.from({ length: 12 }, (_, i) => ({ value: i * 5, label: pad(i * 5) }))
+const PERIODS = [
+  { value: 'AM' as const, label: 'AM' },
+  { value: 'PM' as const, label: 'PM' },
+]
 
-/**
- * Hour / minute / AM-PM selects storing 'HH:mm'. Native <select> gives the
- * iOS wheel picker; minutes step by 5 (type="time" ignores step on iOS).
- */
+/** Hour / minute / AM-PM scroll wheels storing 'HH:mm'; minutes step by 5. */
 export function TimeSelect({
   value,
   onChange,
@@ -24,45 +27,29 @@ export function TimeSelect({
     onChange(`${pad(hour)}:${pad(min)}`)
   }
 
-  const selectCls =
-    'appearance-none rounded-[7px] border border-edge/50 bg-surface2 px-2.5 py-1.5 text-center font-semibold text-accent outline-none'
-
   return (
-    <span className="flex items-center gap-1.5">
-      <select
-        aria-label="Hour"
+    <div className="flex items-stretch justify-center gap-2">
+      <Wheel
+        ariaLabel="Hour"
+        options={HOURS}
         value={hour12}
-        onChange={(e) => commit(Number(e.target.value), minute, isPM)}
-        className={selectCls}
-      >
-        {HOURS.map((h) => (
-          <option key={h} value={h}>
-            {h}
-          </option>
-        ))}
-      </select>
-      <span className="font-semibold text-ink-dim">:</span>
-      <select
-        aria-label="Minutes"
+        onChange={(h) => commit(h, minute, isPM)}
+        className="w-16"
+      />
+      <Wheel
+        ariaLabel="Minutes"
+        options={MINUTES}
         value={minute}
-        onChange={(e) => commit(hour12, Number(e.target.value), isPM)}
-        className={selectCls}
-      >
-        {MINUTES.map((m) => (
-          <option key={m} value={m}>
-            {pad(m)}
-          </option>
-        ))}
-      </select>
-      <select
-        aria-label="AM or PM"
+        onChange={(m) => commit(hour12, m, isPM)}
+        className="w-16"
+      />
+      <Wheel
+        ariaLabel="AM or PM"
+        options={PERIODS}
         value={isPM ? 'PM' : 'AM'}
-        onChange={(e) => commit(hour12, minute, e.target.value === 'PM')}
-        className={selectCls}
-      >
-        <option>AM</option>
-        <option>PM</option>
-      </select>
-    </span>
+        onChange={(p) => commit(hour12, minute, p === 'PM')}
+        className="w-16"
+      />
+    </div>
   )
 }

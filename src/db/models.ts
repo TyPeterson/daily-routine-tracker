@@ -11,6 +11,8 @@ export interface Task {
   startDate: DateStr
   /** optional last day the task repeats */
   endDate?: DateStr
+  /** occurrence dates removed or split out of the series */
+  skipDates?: DateStr[]
   /** optional 'HH:mm' used for ordering and display */
   timeOfDay?: string
   /** goals this task contributes to (many-to-many) */

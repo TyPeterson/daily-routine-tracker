@@ -23,6 +23,8 @@ export interface Schedulable {
   recurrence: Recurrence
   startDate: DateStr
   endDate?: DateStr
+  /** dates explicitly removed from the series (deleted/split occurrences) */
+  skipDates?: DateStr[]
 }
 
 /** Does this item have an occurrence on the given local date? */
@@ -30,6 +32,7 @@ export function occursOn(item: Schedulable, date: DateStr): boolean {
   // DateStr sorts lexicographically in chronological order
   if (date < item.startDate) return false
   if (item.endDate && date > item.endDate) return false
+  if (item.skipDates?.includes(date)) return false
 
   const rec = item.recurrence
   const start = fromDateStr(item.startDate)

@@ -1,7 +1,7 @@
 import { db } from './schema'
 import type { CheckIn, Checkpoint, Completion, Goal, Task } from './models'
-import type { DateStr } from '../domain/dates'
-import { valueCrosses } from '../domain/progress'
+import { addDaysStr, type DateStr } from '../domain/dates'
+import { milestoneAchievedAt } from '../domain/progress'
 
 const newId = () => crypto.randomUUID()
 
@@ -17,10 +17,83 @@ export async function updateTask(id: string, changes: Partial<Omit<Task, 'id'>>)
   await db.tasks.update(id, changes)
 }
 
+/** Erase the task and its completion history entirely. */
 export async function deleteTask(id: string): Promise<void> {
   await db.transaction('rw', db.tasks, db.completions, async () => {
     await db.completions.where('taskId').equals(id).delete()
     await db.tasks.delete(id)
+  })
+}
+
+/** Remove a single occurrence from a series (and its completion, if any). */
+export async function deleteOccurrence(taskId: string, date: DateStr): Promise<void> {
+  await db.transaction('rw', db.tasks, db.completions, async () => {
+    await db.tasks
+      .where('id')
+      .equals(taskId)
+      .modify((t) => {
+        t.skipDates = [...(t.skipDates ?? []), date]
+      })
+    await db.completions.where('[taskId+date]').equals([taskId, date]).delete()
+  })
+}
+
+/**
+ * Stop the series from `date` onward while keeping past occurrences and
+ * their completion history. A series with no past left is simply deleted.
+ */
+export async function endSeriesBefore(taskId: string, date: DateStr): Promise<void> {
+  await db.transaction('rw', db.tasks, db.completions, async () => {
+    const task = await db.tasks.get(taskId)
+    if (!task) return
+    const lastKept = addDaysStr(date, -1)
+    if (lastKept < task.startDate) {
+      await db.completions.where('taskId').equals(taskId).delete()
+      await db.tasks.delete(taskId)
+      return
+    }
+    await db.tasks.update(taskId, { endDate: lastKept })
+    // completions logged on now-removed future occurrences make no sense
+    await db.completions
+      .where('taskId')
+      .equals(taskId)
+      .filter((c) => c.date >= date)
+      .delete()
+  })
+}
+
+/**
+ * "Edit only this day": the occurrence becomes its own one-off task carrying
+ * the edited fields; the original series skips that date. An existing
+ * completion follows the split-off task.
+ */
+export async function splitOccurrence(
+  taskId: string,
+  date: DateStr,
+  payload: Omit<Task, 'id' | 'createdAt' | 'recurrence' | 'startDate' | 'endDate' | 'skipDates'>,
+): Promise<string> {
+  return db.transaction('rw', db.tasks, db.completions, async () => {
+    const newId = crypto.randomUUID()
+    await db.tasks.add({
+      ...payload,
+      id: newId,
+      recurrence: { type: 'none' },
+      startDate: date,
+      createdAt: Date.now(),
+    })
+    await db.tasks
+      .where('id')
+      .equals(taskId)
+      .modify((t) => {
+        t.skipDates = [...(t.skipDates ?? []), date]
+      })
+    await db.completions
+      .where('[taskId+date]')
+      .equals([taskId, date])
+      .modify((c) => {
+        c.taskId = newId
+      })
+    return newId
   })
 }
 
@@ -89,9 +162,10 @@ export async function deleteGoal(id: string): Promise<void> {
 // ---------- check-ins & checkpoints ----------
 
 /**
- * Derive checkpoint achievement from the check-in record: a checkpoint is
- * achieved at the moment of the earliest check-in whose value crosses it.
- * Called inside any transaction that changes check-ins or checkpoints.
+ * Derive milestone achievement from the check-in record. Only the crossing
+ * streak that runs through the latest check-in counts, so backwards progress
+ * (weight back up over a passed milestone) un-reaches it automatically.
+ * Called inside any transaction that changes check-ins or milestones.
  */
 async function recomputeCheckpointAchievements(goalId: string): Promise<void> {
   const goal = await db.goals.get(goalId)
@@ -101,12 +175,11 @@ async function recomputeCheckpointAchievements(goalId: string): Promise<void> {
     db.checkIns.where('goalId').equals(goalId).toArray(),
   ])
   const valued = checkIns
-    .filter((c) => c.value != null)
+    .filter((c): c is CheckIn & { value: number } => c.value != null)
     .sort((a, b) => a.at - b.at)
   for (const cp of checkpoints) {
     if (cp.targetValue == null || !direction) continue
-    const hit = valued.find((ci) => valueCrosses(direction, ci.value!, cp.targetValue!))
-    const achievedAt = hit?.at
+    const achievedAt = milestoneAchievedAt(direction, cp.targetValue, valued)
     if (achievedAt !== cp.achievedAt) {
       await db.checkpoints
         .where('id')

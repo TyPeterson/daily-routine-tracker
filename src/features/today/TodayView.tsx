@@ -102,7 +102,7 @@ export default function TodayView() {
         />
       )}
       {checkInTask && (
-        <TaskCheckInFlow task={checkInTask} onClose={() => setCheckInTask(null)} />
+        <TaskCheckInFlow task={checkInTask} date={date} onClose={() => setCheckInTask(null)} />
       )}
     </div>
   )

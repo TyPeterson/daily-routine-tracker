@@ -3,19 +3,24 @@ import { Icon, type IconName } from './Icon'
 
 export interface SwipeAction {
   icon: IconName
+  /** accessible name; buttons are icon-only circles */
   label: string
   /** background utility class, e.g. 'bg-danger' */
   bg: string
-  /** text color class; defaults to white print */
+  /** icon color class; defaults to white print */
   fg?: string
   onAct: () => void
 }
 
-const ACTION_WIDTH = 64
+const CIRCLE = 42
+const GAP = 10
+const EDGE_PAD = 12
 
 /**
- * iOS-style swipe-to-reveal actions: drag the row left to expose buttons on
- * the right. Parent controls open state so only one row is open at a time.
+ * iOS-style swipe-to-reveal actions: drag the row left to expose small round
+ * keys on the right. `touch-action: pan-y` hands vertical panning to the
+ * browser and keeps horizontal drags for us, so the page never scrolls or
+ * jitters mid-swipe. Parent controls open state so only one row is open.
  */
 export function SwipeActions({
   actions,
@@ -28,7 +33,7 @@ export function SwipeActions({
   onOpenChange: (open: boolean) => void
   children: ReactNode
 }) {
-  const fullWidth = actions.length * ACTION_WIDTH
+  const fullWidth = actions.length * CIRCLE + (actions.length - 1) * GAP + EDGE_PAD * 2
   const start = useRef<{ x: number; y: number; offset: number } | null>(null)
   const [drag, setDragState] = useState<number | null>(null)
   // decisions read the ref: touch events can outpace React re-renders
@@ -58,7 +63,7 @@ export function SwipeActions({
       return
     }
     suppressClick.current = true
-    setDrag(Math.min(0, Math.max(-fullWidth - 24, start.current.offset + dx)))
+    setDrag(Math.min(0, Math.max(-fullWidth - 20, start.current.offset + dx)))
   }
 
   const onTouchEnd = () => {
@@ -70,20 +75,23 @@ export function SwipeActions({
 
   return (
     <div className="module relative overflow-hidden">
-      <div className="absolute inset-y-0 right-0 flex" style={{ width: fullWidth }}>
+      <div
+        className="absolute inset-y-0 right-0 flex items-center justify-end"
+        style={{ width: fullWidth, gap: GAP, paddingRight: EDGE_PAD }}
+      >
         {actions.map((a) => (
           <button
             key={a.label}
             type="button"
+            aria-label={a.label}
             onClick={() => {
               onOpenChange(false)
               a.onAct()
             }}
-            className={`flex flex-col items-center justify-center gap-1 text-[11px] font-bold ${a.fg ?? 'text-white'} ${a.bg}`}
-            style={{ width: ACTION_WIDTH }}
+            className={`flex shrink-0 items-center justify-center rounded-full border-[1.5px] border-edge ${a.fg ?? 'text-white'} ${a.bg}`}
+            style={{ width: CIRCLE, height: CIRCLE }}
           >
-            <Icon name={a.icon} size={19} />
-            {a.label}
+            <Icon name={a.icon} size={17} />
           </button>
         ))}
       </div>
@@ -103,6 +111,7 @@ export function SwipeActions({
         style={{
           transform: `translateX(${offset}px)`,
           transition: drag != null ? 'none' : 'transform 200ms cubic-bezier(0.32, 0.72, 0, 1)',
+          touchAction: 'pan-y',
         }}
       >
         {children}

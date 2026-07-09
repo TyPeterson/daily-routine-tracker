@@ -2,15 +2,22 @@ import { useEffect, useRef, useState } from 'react'
 import { format } from 'date-fns'
 import { Icon } from '../../components/Icon'
 import { Screen } from '../../components/Screen'
-import { Group, Row, SectionLabel } from '../../components/forms'
+import { Group, Row, SectionLabel, Segmented } from '../../components/forms'
 import { exportData, importData, type BackupData } from '../../db/repo'
 import { todayStr } from '../../domain/dates'
 import { checkForUpdates } from '../../pwa/useAppUpdate'
+import { applyThemePref, getThemePref, type ThemePref } from '../../theme'
 
 export default function SettingsView() {
   const [persisted, setPersisted] = useState<boolean | null>(null)
   const [updateStatus, setUpdateStatus] = useState<string | null>(null)
+  const [theme, setTheme] = useState<ThemePref>(() => getThemePref())
   const fileRef = useRef<HTMLInputElement>(null)
+
+  const changeTheme = (pref: ThemePref) => {
+    setTheme(pref)
+    applyThemePref(pref)
+  }
 
   useEffect(() => {
     navigator.storage
@@ -53,7 +60,20 @@ export default function SettingsView() {
     <Screen title="settings" subtitle="routine">
       <div className="space-y-5">
         <section>
-          <SectionLabel index="01">data</SectionLabel>
+          <SectionLabel index="01">appearance</SectionLabel>
+          <Segmented
+            value={theme}
+            onChange={changeTheme}
+            options={[
+              { value: 'system', label: 'system' },
+              { value: 'light', label: 'light' },
+              { value: 'dark', label: 'dark' },
+            ]}
+          />
+        </section>
+
+        <section>
+          <SectionLabel index="02">data</SectionLabel>
           <Group>
             <button
               type="button"
@@ -96,7 +116,7 @@ export default function SettingsView() {
         </section>
 
         <section>
-          <SectionLabel index="02">app</SectionLabel>
+          <SectionLabel index="03">app</SectionLabel>
           <Group>
             <Row label="version">
               <span className="text-[13px] text-ink-dim">
@@ -124,7 +144,7 @@ export default function SettingsView() {
         </section>
 
         <section>
-          <SectionLabel index="03">install on iphone</SectionLabel>
+          <SectionLabel index="04">install on iphone</SectionLabel>
           <div className="module dots-bg p-4 text-[13px] leading-relaxed text-ink-dim">
             open this site in <span className="font-bold text-ink">safari</span>, tap{' '}
             <span className="font-bold text-ink">share</span>, then{' '}

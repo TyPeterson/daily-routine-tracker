@@ -3,14 +3,24 @@ import { Icon } from '../../components/Icon'
 import { Sheet } from '../../components/Sheet'
 import { Group } from '../../components/forms'
 import type { Goal, Task } from '../../db/models'
+import type { DateStr } from '../../domain/dates'
 import { useActiveGoals } from '../../hooks/useGoals'
 import { CheckInSheet } from './CheckInSheet'
 
 /**
  * "Add a check-in" from a completed task: goes straight to the check-in sheet
- * when the task has one goal, otherwise asks which goal first.
+ * when the task has one goal, otherwise asks which goal first. The check-in
+ * date is the task occurrence's date.
  */
-export function TaskCheckInFlow({ task, onClose }: { task: Task; onClose: () => void }) {
+export function TaskCheckInFlow({
+  task,
+  date,
+  onClose,
+}: {
+  task: Task
+  date: DateStr
+  onClose: () => void
+}) {
   const goals = useActiveGoals() // undefined while the live query loads
   const [pickedId, setPickedId] = useState<string | null>(null)
 
@@ -30,7 +40,7 @@ export function TaskCheckInFlow({ task, onClose }: { task: Task; onClose: () => 
 
   // derived, not captured in state: a single linked goal skips the chooser
   const goalId = pickedId ?? (linked.length === 1 ? linked[0]!.id : null)
-  if (goalId) return <CheckInSheet goalId={goalId} onClose={onClose} />
+  if (goalId) return <CheckInSheet goalId={goalId} fixedDate={date} onClose={onClose} />
   if (linked.length === 0) return null
 
   return (

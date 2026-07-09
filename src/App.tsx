@@ -14,7 +14,23 @@ export default function App() {
     // ask the browser not to evict IndexedDB under storage pressure
     void navigator.storage?.persist?.().catch(() => {})
     // keep the layout pinned when the iOS keyboard tries to pan the page
-    return pinViewportListener()
+    const unpin = pinViewportListener()
+    // reveal whatever gets focused with a calm internal scroll once the
+    // keyboard has settled, instead of letting the page jump around
+    const reveal = (e: FocusEvent) => {
+      const el = e.target
+      if (!(el instanceof HTMLInputElement) && !(el instanceof HTMLTextAreaElement)) return
+      window.setTimeout(() => {
+        if (document.activeElement === el) {
+          el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+        }
+      }, 350)
+    }
+    document.addEventListener('focusin', reveal)
+    return () => {
+      unpin()
+      document.removeEventListener('focusin', reveal)
+    }
   }, [])
 
   return (

@@ -10,6 +10,7 @@ import {
   YAxis,
 } from 'recharts'
 import type { CheckIn, Checkpoint, GoalMetric } from '../../db/models'
+import { chartScale } from '../../domain/chartScale'
 import { useCssVar } from '../../hooks/useCssVar'
 
 /**
@@ -39,14 +40,13 @@ export function ProgressChart({
   const data = checkIns.map((c) => ({ at: c.at, value: c.value! }))
   const markedCheckpoints = checkpoints.filter((c) => c.targetValue != null)
 
-  const allValues = [
-    ...data.map((d) => d.value),
+  // axis runs start → target, stretching only when data crosses a bound
+  const { domain, ticks } = chartScale([
+    ...(metric?.startValue != null ? [metric.startValue] : []),
     ...(metric?.targetValue != null ? [metric.targetValue] : []),
     ...markedCheckpoints.map((c) => c.targetValue!),
-  ]
-  const min = Math.min(...allValues)
-  const max = Math.max(...allValues)
-  const pad = (max - min || Math.abs(max) || 1) * 0.15
+    ...data.map((d) => d.value),
+  ])
 
   return (
     <ResponsiveContainer width="100%" height={210}>
@@ -63,7 +63,8 @@ export function ProgressChart({
           minTickGap={40}
         />
         <YAxis
-          domain={[min - pad, max + pad]}
+          domain={domain}
+          ticks={ticks}
           tick={{ fontSize: 11, fill: inkDim }}
           tickFormatter={(v: number) => `${Math.round(v * 100) / 100}`}
           axisLine={false}

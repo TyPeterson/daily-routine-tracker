@@ -3,6 +3,7 @@ import {
   goalPercent,
   goalTargetReached,
   metricPercent,
+  milestoneAchievedAt,
   valueCrosses,
   weeklyCompletionCounts,
 } from './progress'
@@ -106,6 +107,30 @@ describe('valueCrosses / goalTargetReached', () => {
     expect(goalTargetReached(metric, 180)).toBe(true)
     expect(goalTargetReached(metric, 181)).toBe(false)
     expect(goalTargetReached({ unit: 'x', direction: 'increase' }, 100)).toBe(false) // no target
+  })
+})
+
+describe('milestoneAchievedAt', () => {
+  const v = (at: number, value: number) => ({ at, value })
+
+  it('reached when the latest values cross it', () => {
+    expect(milestoneAchievedAt('decrease', 190, [v(1, 195), v(2, 189)])).toBe(2)
+  })
+
+  it('backwards progress un-reaches it (189 then 191)', () => {
+    expect(milestoneAchievedAt('decrease', 190, [v(1, 189), v(2, 191)])).toBeUndefined()
+  })
+
+  it('re-crossing later reaches again from the new streak start', () => {
+    expect(milestoneAchievedAt('decrease', 190, [v(1, 189), v(2, 191), v(3, 188)])).toBe(3)
+  })
+
+  it('reach time is the start of the final crossing streak', () => {
+    expect(milestoneAchievedAt('increase', 1, [v(1, 1.2), v(2, 1.5)])).toBe(1)
+  })
+
+  it('never reached without a crossing', () => {
+    expect(milestoneAchievedAt('increase', 5, [v(1, 2), v(2, 4.9)])).toBeUndefined()
   })
 })
 

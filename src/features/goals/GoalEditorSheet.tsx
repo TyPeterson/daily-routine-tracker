@@ -63,7 +63,12 @@ export function GoalEditorSheet({
   const [color, setColor] = useState<string | undefined>(goal?.color)
 
   const forbiddenParents = goal ? descendantIds(goal.id, allGoals) : new Set<string>()
-  const parentOptions = allGoals.filter((g) => !forbiddenParents.has(g.id))
+  // one level of nesting only: sub-goals can't be parents, and a goal that
+  // already has sub-goals can't become someone's child
+  const parentOptions = allGoals.filter(
+    (g) => !forbiddenParents.has(g.id) && !g.parentGoalId,
+  )
+  const canHaveParent = subGoalCount === 0
 
   const canSave = title.trim().length > 0 && (!hasMetric || unit.trim().length > 0)
 
@@ -114,7 +119,7 @@ export function GoalEditorSheet({
   }
 
   return (
-    <Sheet title={goal ? 'edit goal' : 'new goal'} onClose={onClose}>
+    <Sheet title={goal ? 'edit goal' : 'new goal'} tall onClose={onClose}>
       <div className="space-y-5">
         <Group>
           <input
@@ -140,6 +145,9 @@ export function GoalEditorSheet({
                     value={unit}
                     onChange={(e) => setUnit(e.target.value)}
                     placeholder="miles, lbs, minutes…"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                     className="w-44 bg-transparent text-right outline-none placeholder:text-ink-dim/60"
                   />
                 </Row>
@@ -196,20 +204,22 @@ export function GoalEditorSheet({
                 <Toggle on={hasTargetDate} onChange={setHasTargetDate} />
               </span>
             </Row>
-            <Row label="parent goal">
-              <select
-                value={parentId}
-                onChange={(e) => setParentId(e.target.value)}
-                className="max-w-44 bg-transparent text-right font-semibold text-accent outline-none"
-              >
-                <option value="">none</option>
-                {parentOptions.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.title}
-                  </option>
-                ))}
-              </select>
-            </Row>
+            {canHaveParent && (
+              <Row label="parent goal">
+                <select
+                  value={parentId}
+                  onChange={(e) => setParentId(e.target.value)}
+                  className="max-w-44 bg-transparent text-right font-semibold text-accent outline-none"
+                >
+                  <option value="">none</option>
+                  {parentOptions.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.title}
+                    </option>
+                  ))}
+                </select>
+              </Row>
+            )}
             <Row label="completed">
               <Toggle on={completed} onChange={setCompleted} />
             </Row>

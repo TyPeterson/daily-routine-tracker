@@ -179,7 +179,7 @@ export default function CalendarView() {
           ))}
         </div>
         <div
-          className="module grid min-h-0 flex-1 grid-cols-7 gap-[3px] p-1.5"
+          className="module grid max-h-[66dvh] min-h-0 flex-1 grid-cols-7 gap-[3px] p-1.5"
           style={{ gridTemplateRows: `repeat(${weeks}, minmax(0, 1fr))` }}
         >
           {days.map((d) => {

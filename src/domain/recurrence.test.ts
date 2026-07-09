@@ -82,6 +82,16 @@ describe('occursOn', () => {
     expect(occursOn(t, '2026-05-31')).toBe(true)
   })
 
+  it('skipDates remove single occurrences from a series', () => {
+    const t = item({
+      recurrence: { type: 'daily', interval: 1 },
+      skipDates: ['2026-01-03'],
+    })
+    expect(occursOn(t, '2026-01-02')).toBe(true)
+    expect(occursOn(t, '2026-01-03')).toBe(false)
+    expect(occursOn(t, '2026-01-04')).toBe(true)
+  })
+
   it('monthly interval skips months from the anchor', () => {
     const t = item({
       recurrence: { type: 'monthly', interval: 3, dayOfMonth: 10 },

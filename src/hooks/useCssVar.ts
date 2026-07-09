@@ -1,10 +1,14 @@
 import { useSyncExternalStore } from 'react'
 
 function subscribe(onChange: () => void) {
-  // token values only change when the system theme flips
+  // token values change when the system theme flips or settings force one
   const mq = window.matchMedia('(prefers-color-scheme: dark)')
   mq.addEventListener('change', onChange)
-  return () => mq.removeEventListener('change', onChange)
+  window.addEventListener('themechange', onChange)
+  return () => {
+    mq.removeEventListener('change', onChange)
+    window.removeEventListener('themechange', onChange)
+  }
 }
 
 /**

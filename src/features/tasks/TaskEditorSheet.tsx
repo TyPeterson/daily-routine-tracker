@@ -1,16 +1,27 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { getDate, getDay } from 'date-fns'
+import { useLiveQuery } from 'dexie-react-hooks'
 import { Icon } from '../../components/Icon'
 import { NumberField } from '../../components/NumberField'
 import { Sheet } from '../../components/Sheet'
 import { TimeSelect } from '../../components/TimeSelect'
 import { Group, Row, SectionLabel, Segmented, Toggle } from '../../components/forms'
 import { ColorPicker, EmojiPicker } from '../../components/pickers'
-import { createTask, deleteTask, updateTask } from '../../db/repo'
+import { db } from '../../db/schema'
+import {
+  createTask,
+  deleteOccurrence,
+  deleteTask,
+  endSeriesBefore,
+  splitOccurrence,
+  updateTask,
+} from '../../db/repo'
 import type { Task } from '../../db/models'
 import { addDaysStr, fromDateStr, type DateStr } from '../../domain/dates'
 import type { Recurrence } from '../../domain/recurrence'
 import { useActiveGoals } from '../../hooks/useGoals'
+import { useVisualViewportHeight } from '../../hooks/useVisualViewport'
 
 const WEEKDAY_CHIPS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 
@@ -44,8 +55,20 @@ export function TaskEditorSheet({
   const [goalIds, setGoalIds] = useState<string[]>(task?.goalIds ?? [])
   const [color, setColor] = useState<string | undefined>(task?.color)
   const [icon, setIcon] = useState<string | undefined>(task?.icon)
+  const [notesExpanded, setNotesExpanded] = useState(false)
+  const [scopeAsk, setScopeAsk] = useState<null | 'save' | 'delete'>(null)
+
+  const viewportHeight = useVisualViewportHeight()
+  const keyboardInset = Math.max(0, window.innerHeight - viewportHeight)
+
+  const completionCount =
+    useLiveQuery(
+      async () => (task ? db.completions.where('taskId').equals(task.id).count() : 0),
+      [task?.id],
+    ) ?? 0
 
   const repeats = recType !== 'none'
+  const isSeries = task != null && task.recurrence.type !== 'none'
   const canSave = title.trim().length > 0 && (recType !== 'weekly' || weekdays.length > 0)
 
   const buildRecurrence = (): Recurrence => {
@@ -61,27 +84,63 @@ export function TaskEditorSheet({
     }
   }
 
+  const buildPayload = () => ({
+    title: title.trim(),
+    notes: notes.trim(),
+    recurrence: buildRecurrence(),
+    startDate,
+    endDate: repeats && hasEnd ? endDate : undefined,
+    timeOfDay: hasTime ? timeOfDay : undefined,
+    goalIds,
+    color,
+    icon,
+  })
+
   const save = async () => {
-    const payload = {
-      title: title.trim(),
-      notes: notes.trim(),
-      recurrence: buildRecurrence(),
-      startDate,
-      endDate: repeats && hasEnd ? endDate : undefined,
-      timeOfDay: hasTime ? timeOfDay : undefined,
-      goalIds,
-      color,
-      icon,
+    if (task && isSeries) {
+      // changing a series prompts for scope first
+      setScopeAsk('save')
+      return
     }
-    if (task) await updateTask(task.id, payload)
-    else await createTask(payload)
+    if (task) await updateTask(task.id, buildPayload())
+    else await createTask(buildPayload())
+    onClose()
+  }
+
+  const applySave = async (scope: 'one' | 'all') => {
+    if (!task) return
+    if (scope === 'one') {
+      // this day becomes its own one-off task carrying the edits
+      await splitOccurrence(task.id, defaultDate, {
+        title: title.trim(),
+        notes: notes.trim(),
+        timeOfDay: hasTime ? timeOfDay : undefined,
+        goalIds,
+        color,
+        icon,
+      })
+    } else {
+      await updateTask(task.id, buildPayload())
+    }
     onClose()
   }
 
   const remove = async () => {
     if (!task) return
-    if (!window.confirm(`Delete “${task.title}” and its completion history?`)) return
+    if (isSeries) {
+      setScopeAsk('delete')
+      return
+    }
+    if (!window.confirm(`Delete “${task.title}”?`)) return
     await deleteTask(task.id)
+    onClose()
+  }
+
+  const applyDelete = async (scope: 'one' | 'future' | 'all') => {
+    if (!task) return
+    if (scope === 'one') await deleteOccurrence(task.id, defaultDate)
+    else if (scope === 'future') await endSeriesBefore(task.id, defaultDate)
+    else await deleteTask(task.id)
     onClose()
   }
 
@@ -95,7 +154,7 @@ export function TaskEditorSheet({
     recType === 'daily' ? 'day' : recType === 'weekly' ? 'week' : 'month'
 
   return (
-    <Sheet title={task ? 'edit task' : 'new task'} onClose={onClose}>
+    <Sheet title={task ? 'edit task' : 'new task'} tall onClose={onClose}>
       <div className="space-y-5">
         <Group>
           <input
@@ -105,13 +164,23 @@ export function TaskEditorSheet({
             autoFocus={!task}
             className="w-full bg-transparent px-4 py-3 text-[16px] font-semibold outline-none placeholder:text-ink-dim/70"
           />
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="notes"
-            rows={2}
-            className="w-full resize-none bg-transparent px-4 py-3 text-[14px] outline-none placeholder:text-ink-dim/70"
-          />
+          <div className="relative">
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="notes"
+              rows={2}
+              className="w-full resize-none bg-transparent px-4 py-3 pr-11 text-[14px] outline-none placeholder:text-ink-dim/70"
+            />
+            <button
+              type="button"
+              aria-label="Expand notes"
+              onClick={() => setNotesExpanded(true)}
+              className="absolute top-2.5 right-2.5 p-1 text-ink-dim"
+            >
+              <Icon name="maximize" size={14} />
+            </button>
+          </div>
         </Group>
 
         <section>
@@ -175,11 +244,13 @@ export function TaskEditorSheet({
               />
             </Row>
             <Row label="time of day">
-              <span className="flex items-center gap-3">
-                {hasTime && <TimeSelect value={timeOfDay} onChange={setTimeOfDay} />}
-                <Toggle on={hasTime} onChange={setHasTime} />
-              </span>
+              <Toggle on={hasTime} onChange={setHasTime} />
             </Row>
+            {hasTime && (
+              <div className="px-4 py-2.5">
+                <TimeSelect value={timeOfDay} onChange={setTimeOfDay} />
+              </div>
+            )}
             {repeats && (
               <Row label="end repeat">
                 <span className="flex items-center gap-3">
@@ -261,6 +332,95 @@ export function TaskEditorSheet({
           )}
         </div>
       </div>
+
+      {notesExpanded &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex flex-col bg-canvas">
+            <div className="pt-safe px-5">
+              <div className="flex items-center justify-between py-3">
+                <h2 className="text-[17px] font-bold tracking-tight">notes</h2>
+                <button
+                  type="button"
+                  onClick={() => setNotesExpanded(false)}
+                  className="key px-4 py-1.5 text-[13px] font-bold text-accent"
+                >
+                  done
+                </button>
+              </div>
+            </div>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="notes"
+              autoFocus
+              className="module mx-4 mb-4 min-h-0 flex-1 resize-none p-4 text-[15px] leading-relaxed outline-none placeholder:text-ink-dim/70"
+            />
+            <div style={{ height: keyboardInset }} aria-hidden />
+          </div>,
+          document.body,
+        )}
+
+      {scopeAsk && task && (
+        <Sheet
+          title={scopeAsk === 'save' ? 'apply changes to…' : 'delete…'}
+          onClose={() => setScopeAsk(null)}
+        >
+          <div className="space-y-2.5">
+            {scopeAsk === 'save' ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => void applySave('one')}
+                  className="key w-full py-3 text-[14px] font-bold"
+                >
+                  only this day
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void applySave('all')}
+                  className="key w-full py-3 text-[14px] font-bold"
+                >
+                  all events in the series
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => void applyDelete('one')}
+                  className="key w-full py-3 text-[14px] font-bold"
+                >
+                  only this day
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void applyDelete('future')}
+                  className="key w-full py-3 text-[14px] font-bold"
+                >
+                  this and future events
+                  <span className="block text-[11px] font-semibold text-ink-dim">
+                    past days and completion history are kept
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void applyDelete('all')}
+                  className="key w-full py-3 text-[14px] font-bold text-danger"
+                >
+                  {completionCount > 0 ? 'entire series + history' : 'entire series'}
+                </button>
+              </>
+            )}
+            <button
+              type="button"
+              onClick={() => setScopeAsk(null)}
+              className="w-full py-2.5 text-[14px] font-bold text-ink-dim"
+            >
+              cancel
+            </button>
+          </div>
+        </Sheet>
+      )}
     </Sheet>
   )
 }

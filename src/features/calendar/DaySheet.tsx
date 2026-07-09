@@ -54,7 +54,7 @@ export function DaySheet({ date, onClose }: { date: DateStr; onClose: () => void
         />
       )}
       {checkInTask && (
-        <TaskCheckInFlow task={checkInTask} onClose={() => setCheckInTask(null)} />
+        <TaskCheckInFlow task={checkInTask} date={date} onClose={() => setCheckInTask(null)} />
       )}
     </>
   )

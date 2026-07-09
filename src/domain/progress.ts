@@ -12,6 +12,25 @@ export function goalTargetReached(metric: GoalMetric, value: number): boolean {
   return metric.targetValue != null && valueCrosses(metric.direction, value, metric.targetValue)
 }
 
+/**
+ * When (if at all) a milestone counts as reached, given check-in values in
+ * time order. Backwards progress un-reaches it: only the streak of crossing
+ * values that runs through to the latest check-in counts, and the reach time
+ * is when that streak began.
+ */
+export function milestoneAchievedAt(
+  direction: MetricDirection,
+  target: number,
+  valuedCheckIns: { at: number; value: number }[],
+): number | undefined {
+  let streakStart: number | undefined
+  for (const ci of valuedCheckIns) {
+    if (valueCrosses(direction, ci.value, target)) streakStart ??= ci.at
+    else streakStart = undefined
+  }
+  return streakStart
+}
+
 export function latestValuedCheckIn(checkIns: CheckIn[]): CheckIn | undefined {
   return checkIns
     .filter((c) => c.value != null)

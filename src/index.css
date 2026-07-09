@@ -22,8 +22,12 @@
   --danger: #d92b21;
 }
 
+/*
+ * Dark tokens apply when the system is dark (unless light is forced in
+ * settings) or when dark is forced. Keep both blocks identical.
+ */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --canvas: #131313;
     --surface: #1f1f1f;
     --surface2: #2c2c2c;
@@ -39,6 +43,23 @@
     --good-soft: rgba(39, 196, 111, 0.18);
     --danger: #ff5147;
   }
+}
+
+:root[data-theme="dark"] {
+  --canvas: #131313;
+  --surface: #1f1f1f;
+  --surface2: #2c2c2c;
+  --ink: #eceae2;
+  --ink-dim: #8f8e86;
+  --line: rgba(236, 234, 226, 0.14);
+  --edge: #eceae2;
+  --hard: rgba(0, 0, 0, 0.6);
+  --accent: #ff5a14;
+  --accent-soft: rgba(255, 90, 20, 0.16);
+  --on-accent: #141414;
+  --good: #27c46f;
+  --good-soft: rgba(39, 196, 111, 0.18);
+  --danger: #ff5147;
 }
 
 @theme inline {
