@@ -99,9 +99,20 @@
     height: 100%;
   }
 
-  #root {
-    /* fill the real screen edge-to-edge; safe areas are handled per-surface */
-    height: 100dvh;
+  /*
+   * Hard-lock the document. iOS pans/rubber-bands the whole page (bottom nav
+   * included) whenever a touch chains past an inner scroller — pinning the
+   * body means the only thing that can ever move is an inner overflow
+   * container. Safe areas are handled per-surface.
+   */
+  html,
+  body {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+  body {
+    position: fixed;
+    inset: 0;
   }
 
   html {
@@ -116,8 +127,9 @@
     font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, "Cascadia Mono",
       "Roboto Mono", monospace;
     -webkit-font-smoothing: antialiased;
-    /* native-app feel: no rubber-band bounce on the page itself, no tap flash */
-    overscroll-behavior-y: none;
+    /* native-app feel: no tap flash, and no double-tap zoom (iOS ignores
+       user-scalable=no) so taps never wait on the zoom-gesture timeout */
+    touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
     -webkit-touch-callout: none;
     -webkit-user-select: none;
