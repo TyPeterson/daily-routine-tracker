@@ -105,22 +105,14 @@
   }
 
   /*
-   * Lock the document so the shell (bottom nav included) can never be
-   * dragged — only inner overflow containers move. The lock lives on BODY
-   * only, never html: per spec, body's overflow propagates to the viewport
-   * (stopping document scroll) while body's own used overflow becomes
-   * visible, so nothing clips. On iOS standalone the html/body boxes come
-   * out ~60pt shorter than the real screen while #root's 100dvh is full
-   * height — overflow:hidden on html clipped that overhang and left a dead
-   * band above the home indicator (the v1.4.1/v1.4.2 bug).
+   * DO NOT add overflow / overscroll-behavior / position rules to html or
+   * body here. On iOS standalone (observed on iPhone 17 Pro Max, iOS 26),
+   * every variant tried — overflow:hidden on html, on body, position:fixed
+   * body — distorted the viewport and left a dead band above the home
+   * indicator (v1.4.1–v1.4.3). Keeping the nav pinned during drags is
+   * handled by the JS pan guard instead (src/hooks/panGuard.ts), which
+   * cancels document-level touch pans without touching geometry.
    */
-  body {
-    overflow: hidden;
-  }
-  html,
-  body {
-    overscroll-behavior: none;
-  }
 
   html {
     /* paint any letterbox/overscroll region the app color, not black/white */
@@ -134,9 +126,8 @@
     font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, "Cascadia Mono",
       "Roboto Mono", monospace;
     -webkit-font-smoothing: antialiased;
-    /* native-app feel: no tap flash, and no double-tap zoom (iOS ignores
-       user-scalable=no) so taps never wait on the zoom-gesture timeout */
-    touch-action: manipulation;
+    /* native-app feel: no rubber-band bounce on the page itself, no tap flash */
+    overscroll-behavior-y: none;
     -webkit-tap-highlight-color: transparent;
     -webkit-touch-callout: none;
     -webkit-user-select: none;

@@ -4,6 +4,7 @@ import { BottomNav } from './components/BottomNav'
 import { DialogHost } from './components/Dialog'
 import { UpdateBanner } from './components/UpdateBanner'
 import { pinViewportListener } from './hooks/useVisualViewport'
+import { installPanGuard } from './hooks/panGuard'
 import { useSwipeNav } from './hooks/useSwipe'
 import { startCalendarAutoSync } from './features/settings/calendarSync'
 import TodayView from './features/today/TodayView'
@@ -41,6 +42,8 @@ export default function App() {
     void navigator.storage?.persist?.().catch(() => {})
     // keep the layout pinned when the iOS keyboard tries to pan the page
     const unpin = pinViewportListener()
+    // cancel document-level touch pans so the shell can never be dragged
+    const unguard = installPanGuard()
     // reveal whatever gets focused with a calm internal scroll once the
     // keyboard has settled, instead of letting the page jump around
     const reveal = (e: FocusEvent) => {
@@ -57,6 +60,7 @@ export default function App() {
     const stopCalendarSync = startCalendarAutoSync()
     return () => {
       unpin()
+      unguard()
       document.removeEventListener('focusin', reveal)
       stopCalendarSync()
     }
