@@ -76,12 +76,12 @@ export default function TodayView() {
   const [checkIn, setCheckIn] = useState<{ task: Task; date: DateStr } | null>(null)
 
   const isCurrentWeek = weekStart === currentWeekStart
-  // newest day on top; the current week runs week-to-date (no future days)
-  const lastShown = isCurrentWeek ? today : addDaysStr(weekStart, 6)
-  const days: DateStr[] = []
-  for (let d = lastShown; d >= weekStart; d = addDaysStr(d, -1)) days.push(d)
-
   const weekEnd = addDaysStr(weekStart, 6)
+  // today at the top, then the rest of the week growing downward;
+  // other weeks run Sunday → Saturday
+  const firstShown = isCurrentWeek ? today : weekStart
+  const days: DateStr[] = []
+  for (let d = firstShown; d <= weekEnd; d = addDaysStr(d, 1)) days.push(d)
   const range = `${format(fromDateStr(weekStart), 'MMM d')} – ${format(fromDateStr(weekEnd), 'MMM d')}`
 
   return (
