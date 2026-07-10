@@ -96,9 +96,18 @@ export function SwipeActions({
         ))}
       </div>
       <div
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
+        onTouchStart={(e) => {
+          e.stopPropagation() // keep row swipes from also switching tabs
+          onTouchStart(e)
+        }}
+        onTouchMove={(e) => {
+          e.stopPropagation()
+          onTouchMove(e)
+        }}
+        onTouchEnd={(e) => {
+          e.stopPropagation()
+          onTouchEnd()
+        }}
         onClickCapture={(e) => {
           if (suppressClick.current || open) {
             e.stopPropagation()

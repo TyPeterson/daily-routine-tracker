@@ -2,6 +2,7 @@ import { Icon } from '../../components/Icon'
 import type { Goal, Task } from '../../db/models'
 import { formatTimeOfDay } from '../../domain/dates'
 import { describeRecurrence } from '../../domain/recurrence'
+import { effectiveTaskColor } from '../../domain/taskColor'
 
 const tint = (hex: string) => `${hex}26` // ~15% alpha for #rrggbb
 
@@ -38,7 +39,11 @@ export function TaskRow({
           className={`flex h-[26px] w-[26px] items-center justify-center rounded-full border-2 transition-colors ${
             completed ? 'border-edge bg-accent text-on-accent' : 'text-transparent'
           }`}
-          style={!completed ? { borderColor: task.color ?? 'var(--ink-dim)' } : undefined}
+          style={
+            !completed
+              ? { borderColor: effectiveTaskColor(task, goals) ?? 'var(--ink-dim)' }
+              : undefined
+          }
         >
           <Icon name="check" size={14} strokeWidth={3.5} />
         </span>

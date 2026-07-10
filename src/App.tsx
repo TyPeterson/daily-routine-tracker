@@ -1,9 +1,10 @@
 import { useEffect } from 'react'
-import { Route, Routes } from 'react-router-dom'
+import { Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { BottomNav } from './components/BottomNav'
 import { DialogHost } from './components/Dialog'
 import { UpdateBanner } from './components/UpdateBanner'
 import { pinViewportListener } from './hooks/useVisualViewport'
+import { useSwipeNav } from './hooks/useSwipe'
 import { startCalendarAutoSync } from './features/settings/calendarSync'
 import TodayView from './features/today/TodayView'
 import CalendarView from './features/calendar/CalendarView'
@@ -11,7 +12,30 @@ import GoalsList from './features/goals/GoalsList'
 import GoalDetail from './features/goals/GoalDetail'
 import SettingsView from './features/settings/SettingsView'
 
+const TAB_PATHS = ['/', '/calendar', '/goals', '/settings']
+
 export default function App() {
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  // horizontal swipes anywhere page between tabs (edges are no-ops)
+  const tabIndex =
+    location.pathname === '/'
+      ? 0
+      : location.pathname.startsWith('/calendar')
+        ? 1
+        : location.pathname.startsWith('/goals')
+          ? 2
+          : 3
+  const tabSwipe = useSwipeNav(
+    () => {
+      if (tabIndex > 0) navigate(TAB_PATHS[tabIndex - 1]!)
+    },
+    () => {
+      if (tabIndex < TAB_PATHS.length - 1) navigate(TAB_PATHS[tabIndex + 1]!)
+    },
+  )
+
   useEffect(() => {
     // ask the browser not to evict IndexedDB under storage pressure
     void navigator.storage?.persist?.().catch(() => {})
@@ -44,7 +68,7 @@ export default function App() {
       <div className="pointer-events-none fixed inset-x-0 top-0 z-30 h-[env(safe-area-inset-top)] bg-canvas/70 backdrop-blur-md" />
       <UpdateBanner />
       <DialogHost />
-      <main className="min-h-0 flex-1">
+      <main {...tabSwipe} className="min-h-0 flex-1">
         <Routes>
           <Route path="/" element={<TodayView />} />
           <Route path="/calendar" element={<CalendarView />} />

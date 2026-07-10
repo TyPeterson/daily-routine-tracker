@@ -29,7 +29,16 @@ export function checkpointLabel(cp: Checkpoint, unit: string): string {
 }
 
 /** Trailing-weeks completion mini bars for one linked task. */
-function TaskConsistency({ task, completionDates }: { task: Task; completionDates: string[] }) {
+function TaskConsistency({
+  task,
+  completionDates,
+  fallbackColor,
+}: {
+  task: Task
+  completionDates: string[]
+  /** the goal's own color, used when the task has none of its own */
+  fallbackColor?: string
+}) {
   const buckets = weeklyCompletionCounts(completionDates, CONSISTENCY_WEEKS, todayStr())
   const max = Math.max(1, ...buckets.map((b) => b.count))
   return (
@@ -47,7 +56,7 @@ function TaskConsistency({ task, completionDates }: { task: Task; completionDate
             key={b.weekStart}
             className="w-2 rounded-sm"
             style={{
-              background: task.color ?? 'var(--accent)',
+              background: task.color ?? fallbackColor ?? 'var(--accent)',
               height: b.count === 0 ? 3 : Math.max(6, (b.count / max) * 32),
               opacity: b.count === 0 ? 0.2 : 0.45 + 0.55 * (b.count / max),
             }}
@@ -97,6 +106,7 @@ export default function GoalDetail() {
   const [checkInOpen, setCheckInOpen] = useState(false)
   const [subGoalEditorOpen, setSubGoalEditorOpen] = useState(false)
   const [newCpValue, setNewCpValue] = useState('')
+  const [cpError, setCpError] = useState<string | null>(null)
 
   // deleted (or never existed) → land back on the goals list
   useEffect(() => {
@@ -131,6 +141,23 @@ export default function GoalDetail() {
   const addCp = async () => {
     const value = Number(newCpValue)
     if (newCpValue.trim() === '' || Number.isNaN(value)) return
+    const metric = goal?.metric
+    const target = metric?.targetValue
+    const start = metric?.startValue
+    const dir = metric?.direction ?? 'increase'
+    let error: string | null = null
+    if ((checkpoints ?? []).some((c) => c.targetValue === value)) {
+      error = 'that milestone already exists'
+    } else if (target != null && (dir === 'increase' ? value > target : value < target)) {
+      error = `beyond the target (${target} ${unit})`
+    } else if (start != null && (dir === 'increase' ? value <= start : value >= start)) {
+      error = `behind the starting value (${start} ${unit})`
+    }
+    if (error) {
+      setCpError(error)
+      return
+    }
+    setCpError(null)
     await addCheckpoint(goalId, value)
     setNewCpValue('')
   }
@@ -276,13 +303,19 @@ export default function GoalDetail() {
                   <div className="flex items-center gap-2 px-4 py-2.5">
                     <input
                       value={newCpValue}
-                      onChange={(e) => setNewCpValue(e.target.value)}
+                      onChange={(e) => {
+                        setNewCpValue(e.target.value)
+                        setCpError(null)
+                      }}
                       type="number"
                       step="any"
                       inputMode="decimal"
-                      placeholder={`milestone value (${unit})`}
-                      className="min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-ink-dim/60"
+                      placeholder="milestone value"
+                      className={`min-w-0 flex-1 rounded-[7px] border bg-transparent px-2 py-1 text-[14px] outline-none placeholder:text-ink-dim/60 ${
+                        cpError ? 'border-danger ring-1 ring-danger/60' : 'border-transparent'
+                      }`}
                     />
+                    <span className="shrink-0 text-[13px] text-ink-dim/70">{unit}</span>
                     <button
                       type="button"
                       aria-label="Add milestone"
@@ -295,7 +328,13 @@ export default function GoalDetail() {
                   </div>
                 )}
               </Group>
-              {goal.metric && (
+              {cpError && (
+                <p className="mt-1.5 flex items-center gap-1.5 px-1 text-[11px] font-semibold text-danger">
+                  <span className="led led-danger shrink-0" />
+                  {cpError}
+                </p>
+              )}
+              {goal.metric && !cpError && (
                 <p className="mt-1.5 px-1 text-[11px] text-ink-dim">
                   milestones are reached — and un-reached — automatically as check-ins cross them
                 </p>
@@ -318,6 +357,12 @@ export default function GoalDetail() {
                     }
                     className="flex min-h-12 w-full items-center gap-3 px-4 py-2.5 text-left"
                   >
+                    {sub.color && (
+                      <span
+                        className="h-2 w-2 shrink-0 rounded-full border border-edge/60"
+                        style={{ background: sub.color }}
+                      />
+                    )}
                     <span className="min-w-0 flex-1 truncate text-[15px] font-medium">
                       {sub.title}
                     </span>
@@ -350,6 +395,7 @@ export default function GoalDetail() {
                     <TaskConsistency
                       key={task.id}
                       task={task}
+                      fallbackColor={goal.color}
                       completionDates={(completions ?? [])
                         .filter((c) => c.taskId === task.id)
                         .map((c) => c.date)}

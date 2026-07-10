@@ -282,6 +282,9 @@ export function TaskEditorSheet({
             <EmojiPicker value={icon} onChange={setIcon} />
             <ColorPicker value={color} onChange={setColor} />
           </Group>
+          <p className="mt-1.5 px-1 text-[11px] text-ink-dim">
+            no color set = inherits the linked goal's color
+          </p>
         </section>
 
         <section>

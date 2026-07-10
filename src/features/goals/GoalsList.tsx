@@ -148,6 +148,12 @@ export default function GoalsList() {
                             }}
                             className="flex w-full items-center gap-3 text-left"
                           >
+                            {sub.color && (
+                              <span
+                                className="h-2 w-2 shrink-0 rounded-full border border-edge/60"
+                                style={{ background: sub.color }}
+                              />
+                            )}
                             <span className="min-w-0 flex-1 truncate text-[14px]">
                               {sub.title}
                             </span>

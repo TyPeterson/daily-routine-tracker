@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 
 // Feather-style 24x24 stroke icons, inlined so there's no icon-font/network dependency.
 const ICONS = {
@@ -101,6 +101,12 @@ const ICONS = {
       <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
     </>
   ),
+  'arrow-down': (
+    <>
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <polyline points="19 12 12 19 5 12" />
+    </>
+  ),
 } satisfies Record<string, ReactNode>
 
 export type IconName = keyof typeof ICONS
@@ -110,11 +116,13 @@ export function Icon({
   size = 24,
   strokeWidth = 2,
   className,
+  style,
 }: {
   name: IconName
   size?: number
   strokeWidth?: number
   className?: string
+  style?: CSSProperties
 }) {
   return (
     <svg
@@ -127,6 +135,7 @@ export function Icon({
       strokeLinecap="square"
       strokeLinejoin="miter"
       className={className}
+      style={style}
       aria-hidden="true"
     >
       {ICONS[name]}

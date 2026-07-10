@@ -12,10 +12,11 @@ import {
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Icon } from '../../components/Icon'
 import { db } from '../../db/schema'
-import type { Task } from '../../db/models'
+import type { Goal, Task } from '../../db/models'
 import { toDateStr, todayStr, type DateStr } from '../../domain/dates'
 import { occurrencesInRange } from '../../domain/recurrence'
-import { useSwipeNav } from '../../hooks/useSwipe'
+import { effectiveTaskColor } from '../../domain/taskColor'
+import { useGoalsMap } from '../../hooks/useGoals'
 import { DaySheet } from './DaySheet'
 
 interface DayEntry {
@@ -58,12 +59,14 @@ function DayCell({
   inMonth,
   isToday,
   entries,
+  goals,
   onSelect,
 }: {
   day: Date
   inMonth: boolean
   isToday: boolean
   entries: DayEntry[]
+  goals: Map<string, Goal>
   onSelect: () => void
 }) {
   const overflow = entries.length - MAX_PREVIEWS
@@ -84,7 +87,7 @@ function DayCell({
       </span>
       <span className="flex min-h-0 flex-col gap-[3px] overflow-hidden">
         {entries.slice(0, MAX_PREVIEWS).map(({ task, completed }) => {
-          const color = task.color ?? 'var(--accent)'
+          const inherited = effectiveTaskColor(task, goals)
           return (
             <span
               key={task.id}
@@ -92,8 +95,8 @@ function DayCell({
                 completed ? 'line-through opacity-40' : ''
               }`}
               style={{
-                background: task.color ? `${task.color}26` : 'var(--accent-soft)',
-                color,
+                background: inherited ? `${inherited}26` : 'var(--accent-soft)',
+                color: inherited ?? 'var(--accent)',
               }}
             >
               {task.icon && <span className="shrink-0 text-[9px]">{task.icon}</span>}
@@ -120,16 +123,13 @@ export default function CalendarView() {
   const days = eachDayOfInterval({ start: gridStart, end: gridEnd })
   const weeks = days.length / 7
   const occurrences = useMonthOccurrences(toDateStr(gridStart), toDateStr(gridEnd))
+  const goals = useGoalsMap()
 
-  const swipe = useSwipeNav(
-    () => setMonth((m) => addMonths(m, -1)),
-    () => setMonth((m) => addMonths(m, 1)),
-  )
   const today = todayStr()
   const isCurrentMonth = isSameMonth(month, new Date())
 
   return (
-    <div className="flex h-full flex-col" {...swipe}>
+    <div className="flex h-full flex-col">
       <header className="pt-safe px-5 pb-2">
         <div className="flex items-end justify-between gap-3 pt-3">
           <div className="min-w-0">
@@ -191,6 +191,7 @@ export default function CalendarView() {
                 inMonth={isSameMonth(d, month)}
                 isToday={ds === today}
                 entries={occurrences?.get(ds) ?? []}
+                goals={goals}
                 onSelect={() => setSelected(ds)}
               />
             )
