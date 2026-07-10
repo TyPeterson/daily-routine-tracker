@@ -99,20 +99,22 @@
     height: 100%;
   }
 
+  #root {
+    /* fill the real screen edge-to-edge; safe areas are handled per-surface */
+    height: 100dvh;
+  }
+
   /*
-   * Hard-lock the document. iOS pans/rubber-bands the whole page (bottom nav
-   * included) whenever a touch chains past an inner scroller — pinning the
-   * body means the only thing that can ever move is an inner overflow
-   * container. Safe areas are handled per-surface.
+   * Lock the document: no overflow to scroll and no rubber-band, so the
+   * shell (bottom nav included) can never be dragged — only inner overflow
+   * containers move. Deliberately NOT position:fixed on body: iOS lays a
+   * fixed body out against a viewport that excludes the bottom safe area,
+   * which floated the whole app above the screen bottom.
    */
   html,
   body {
     overflow: hidden;
     overscroll-behavior: none;
-  }
-  body {
-    position: fixed;
-    inset: 0;
   }
 
   html {
