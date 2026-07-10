@@ -26,12 +26,17 @@ interface DayEntry {
 
 const MAX_PREVIEWS = 3
 
-/** Occurrences (with done state) for every day in the visible grid. */
+/**
+ * Occurrences (with done state) plus goal target dates for every day in the
+ * visible grid. Goal targets are the headline events of a day, so they get
+ * their own list and render ahead of tasks.
+ */
 function useMonthOccurrences(rangeStart: DateStr, rangeEnd: DateStr) {
   return useLiveQuery(async () => {
-    const [tasks, completions] = await Promise.all([
+    const [tasks, completions, allGoals] = await Promise.all([
       db.tasks.toArray(),
       db.completions.where('date').between(rangeStart, rangeEnd, true, true).toArray(),
+      db.goals.toArray(),
     ])
     const done = new Set(completions.map((c) => `${c.taskId}|${c.date}`))
     const map = new Map<DateStr, DayEntry[]>()
@@ -50,7 +55,18 @@ function useMonthOccurrences(rangeStart: DateStr, rangeEnd: DateStr) {
         return ta === tb ? a.task.title.localeCompare(b.task.title) : ta < tb ? -1 : 1
       })
     }
-    return map
+    const targets = new Map<DateStr, Goal[]>()
+    for (const goal of allGoals) {
+      const d = goal.targetDate
+      if (!d || goal.archivedAt || d < rangeStart || d > rangeEnd) continue
+      const list = targets.get(d) ?? []
+      list.push(goal)
+      targets.set(d, list)
+    }
+    for (const list of targets.values()) {
+      list.sort((a, b) => a.title.localeCompare(b.title))
+    }
+    return { byDay: map, targetsByDay: targets }
   }, [rangeStart, rangeEnd])
 }
 
@@ -59,6 +75,7 @@ function DayCell({
   inMonth,
   isToday,
   entries,
+  goalTargets,
   goals,
   onSelect,
 }: {
@@ -66,10 +83,15 @@ function DayCell({
   inMonth: boolean
   isToday: boolean
   entries: DayEntry[]
+  goalTargets: Goal[]
   goals: Map<string, Goal>
   onSelect: () => void
 }) {
-  const overflow = entries.length - MAX_PREVIEWS
+  // goal targets are the day's headline — they always render, tasks fill
+  // whatever preview slots remain
+  const goalsShown = Math.min(goalTargets.length, MAX_PREVIEWS)
+  const taskSlots = MAX_PREVIEWS - goalsShown
+  const overflow = goalTargets.length + entries.length - MAX_PREVIEWS
   return (
     <button
       type="button"
@@ -86,7 +108,26 @@ function DayCell({
         {day.getDate()}
       </span>
       <span className="flex min-h-0 flex-col gap-[3px] overflow-hidden">
-        {entries.slice(0, MAX_PREVIEWS).map(({ task, completed }) => {
+        {goalTargets.slice(0, goalsShown).map((goal) => {
+          const c = goal.color ?? 'var(--accent)'
+          return (
+            <span
+              key={goal.id}
+              className={`flex shrink-0 items-center gap-[2px] truncate rounded-[3px] border-[1.5px] px-[3px] py-[0.5px] text-[9px] leading-[1.25] font-bold ${
+                goal.completedAt != null ? 'line-through opacity-40' : ''
+              }`}
+              style={{
+                borderColor: c,
+                background: goal.color ? `${goal.color}33` : 'var(--accent-soft)',
+                color: c,
+              }}
+            >
+              <Icon name="target" size={9} strokeWidth={3} className="shrink-0" />
+              <span className="truncate">{goal.title}</span>
+            </span>
+          )
+        })}
+        {entries.slice(0, taskSlots).map(({ task, completed }) => {
           const inherited = effectiveTaskColor(task, goals)
           return (
             <span
@@ -190,7 +231,8 @@ export default function CalendarView() {
                 day={d}
                 inMonth={isSameMonth(d, month)}
                 isToday={ds === today}
-                entries={occurrences?.get(ds) ?? []}
+                entries={occurrences?.byDay.get(ds) ?? []}
+                goalTargets={occurrences?.targetsByDay.get(ds) ?? []}
                 goals={goals}
                 onSelect={() => setSelected(ds)}
               />

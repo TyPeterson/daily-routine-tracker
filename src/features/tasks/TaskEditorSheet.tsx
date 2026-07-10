@@ -299,7 +299,23 @@ export function TaskEditorSheet({
                     onClick={() => toggleGoal(g.id)}
                     className="flex min-h-12 w-full items-center justify-between gap-3 px-4 py-2 text-left transition-colors duration-150 active:bg-surface2/60"
                   >
-                    <span className="text-[15px]">{g.title}</span>
+                    <span className="flex min-w-0 items-center gap-2.5">
+                      <span
+                        className="h-2.5 w-2.5 shrink-0 rounded-full border border-edge/60"
+                        style={
+                          g.color
+                            ? { background: g.color }
+                            : {
+                                // no color set: a tiny speaker-grille dot
+                                backgroundColor: 'var(--surface2)',
+                                backgroundImage:
+                                  'radial-gradient(color-mix(in srgb, var(--ink-dim) 60%, transparent) 1px, transparent 1px)',
+                                backgroundSize: '3px 3px',
+                              }
+                        }
+                      />
+                      <span className="truncate text-[15px]">{g.title}</span>
+                    </span>
                     <span
                       className={`flex h-6 w-6 items-center justify-center rounded-full border ${
                         selected

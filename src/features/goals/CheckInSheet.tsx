@@ -42,9 +42,10 @@ export function CheckInSheet({
 
   const parsedValue = value.trim() === '' ? undefined : Number(value)
   const parsedDelta = delta.trim() === '' ? undefined : Number(delta)
+  // adjustments floor at zero — a decrement can't take the value negative
   const adjusted =
     parsedDelta != null && !Number.isNaN(parsedDelta)
-      ? round2(base + (sign === '+' ? parsedDelta : -parsedDelta))
+      ? Math.max(0, round2(base + (sign === '+' ? parsedDelta : -parsedDelta)))
       : undefined
 
   const numValue = mode === 'set' ? parsedValue : adjusted
