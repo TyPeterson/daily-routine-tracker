@@ -51,7 +51,7 @@ export function TaskCheckInFlow({
             key={g.id}
             type="button"
             onClick={() => setPickedId(g.id)}
-            className="flex min-h-13 w-full items-center gap-3 px-4 py-3 text-left"
+            className="flex min-h-13 w-full items-center gap-3 px-4 py-3 text-left transition-colors duration-150 active:bg-surface2/60"
           >
             <span
               className="h-3 w-3 shrink-0 rounded-full border border-edge/60"

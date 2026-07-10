@@ -99,7 +99,7 @@ export default function GoalsList() {
                   tabIndex={0}
                   onClick={() => openGoal(goal.id)}
                   onKeyDown={(e) => e.key === 'Enter' && openGoal(goal.id)}
-                  className="bg-surface p-4 active:opacity-80"
+                  className="bg-surface p-4 transition-colors duration-150 active:bg-surface2"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <h3 className="flex min-w-0 items-center gap-2 text-[16px] font-bold">

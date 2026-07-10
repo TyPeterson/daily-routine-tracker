@@ -16,7 +16,7 @@ export function ProgressBar({
     >
       {percent != null && (
         <div
-          className={`h-full transition-[width] duration-300 ${
+          className={`h-full transition-[width] duration-500 ease-out ${
             done ? 'bg-good' : color ? '' : 'bg-accent'
           }`}
           style={{ width: `${clamped}%`, ...(color && !done ? { background: color } : {}) }}

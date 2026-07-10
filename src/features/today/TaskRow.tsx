@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Icon } from '../../components/Icon'
 import type { Goal, Task } from '../../db/models'
 import { formatTimeOfDay } from '../../domain/dates'
@@ -27,18 +28,28 @@ export function TaskRow({
     .map((id) => goals.get(id))
     .filter((g): g is Goal => g != null)
 
+  // pop only on a fresh completion, not for rows that mount already done
+  const [justCompleted, setJustCompleted] = useState(false)
+  const handleToggle = () => {
+    if (!completed) {
+      setJustCompleted(true)
+      window.setTimeout(() => setJustCompleted(false), 350)
+    }
+    onToggle()
+  }
+
   return (
     <div className="flex items-stretch">
       <button
         type="button"
         aria-label={completed ? 'Mark not done' : 'Mark done'}
-        onClick={onToggle}
+        onClick={handleToggle}
         className="flex items-center py-3 pr-3 pl-4"
       >
         <span
           className={`flex h-[26px] w-[26px] items-center justify-center rounded-full border-2 transition-colors ${
             completed ? 'border-edge bg-accent text-on-accent' : 'text-transparent'
-          }`}
+          } ${justCompleted && completed ? 'animate-check-pop' : ''}`}
           style={
             !completed
               ? { borderColor: effectiveTaskColor(task, goals) ?? 'var(--ink-dim)' }
@@ -51,11 +62,11 @@ export function TaskRow({
       <button
         type="button"
         onClick={onOpen}
-        className="flex min-w-0 flex-1 items-center justify-between gap-2 py-3 pr-3 text-left"
+        className="flex min-w-0 flex-1 items-center justify-between gap-2 py-3 pr-3 text-left transition-colors duration-150 active:bg-surface2/60"
       >
         <span className="min-w-0">
           <span
-            className={`block truncate text-[15px] font-semibold ${
+            className={`block truncate text-[15px] font-semibold transition-colors duration-300 ${
               completed ? 'text-ink-dim line-through' : ''
             }`}
           >

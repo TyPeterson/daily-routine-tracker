@@ -194,7 +194,7 @@ export default function SettingsView() {
                 {sync.feedUrl && (
                   <a
                     href={sync.feedUrl.replace('https://', 'webcal://')}
-                    className="flex min-h-12 w-full items-center justify-between px-4 py-2"
+                    className="flex min-h-12 w-full items-center justify-between px-4 py-2 transition-colors duration-150 active:bg-surface2/60"
                   >
                     <span className="text-[15px]">subscribe in apple calendar</span>
                     <Icon name="chevron-right" size={15} className="text-ink-dim/60" />
@@ -203,7 +203,7 @@ export default function SettingsView() {
                 <button
                   type="button"
                   onClick={() => void syncNow()}
-                  className="flex min-h-12 w-full items-center justify-between px-4 py-2 text-left"
+                  className="flex min-h-12 w-full items-center justify-between px-4 py-2 text-left transition-colors duration-150 active:bg-surface2/60"
                 >
                   <span className="text-[15px]">sync now</span>
                   <span className="text-[12px] text-ink-dim">{syncStatus ?? ''}</span>
@@ -211,7 +211,7 @@ export default function SettingsView() {
                 <button
                   type="button"
                   onClick={() => void disconnectCalendar()}
-                  className="flex min-h-12 w-full items-center px-4 py-2 text-left"
+                  className="flex min-h-12 w-full items-center px-4 py-2 text-left transition-colors duration-150 active:bg-surface2/60"
                 >
                   <span className="text-[15px] text-danger">disconnect</span>
                 </button>
@@ -230,7 +230,7 @@ export default function SettingsView() {
             <button
               type="button"
               onClick={() => void doExport()}
-              className="flex min-h-12 w-full items-center justify-between px-4 py-2 text-left"
+              className="flex min-h-12 w-full items-center justify-between px-4 py-2 text-left transition-colors duration-150 active:bg-surface2/60"
             >
               <span className="text-[15px]">export backup</span>
               <Icon name="download" size={17} className="text-ink-dim" />
@@ -238,7 +238,7 @@ export default function SettingsView() {
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
-              className="flex min-h-12 w-full items-center justify-between px-4 py-2 text-left"
+              className="flex min-h-12 w-full items-center justify-between px-4 py-2 text-left transition-colors duration-150 active:bg-surface2/60"
             >
               <span className="text-[15px]">import backup</span>
               <Icon name="upload" size={17} className="text-ink-dim" />
@@ -281,7 +281,7 @@ export default function SettingsView() {
             <button
               type="button"
               onClick={() => void doCheckUpdates()}
-              className="flex min-h-12 w-full items-center justify-between px-4 py-2 text-left"
+              className="flex min-h-12 w-full items-center justify-between px-4 py-2 text-left transition-colors duration-150 active:bg-surface2/60"
             >
               <span className="text-[15px]">check for updates</span>
               <span className="text-[12px] text-ink-dim">{updateStatus ?? ''}</span>
@@ -290,7 +290,7 @@ export default function SettingsView() {
               href="https://github.com/TyPeterson/daily-routine-tracker"
               target="_blank"
               rel="noreferrer"
-              className="flex min-h-12 w-full items-center justify-between px-4 py-2"
+              className="flex min-h-12 w-full items-center justify-between px-4 py-2 transition-colors duration-150 active:bg-surface2/60"
             >
               <span className="text-[15px]">source on github</span>
               <Icon name="chevron-right" size={15} className="text-ink-dim/60" />

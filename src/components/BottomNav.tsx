@@ -26,7 +26,11 @@ export function BottomNav() {
             {({ isActive }) => (
               <>
                 <span className={`led ${isActive ? 'led-on' : ''}`} />
-                <Icon name={tab.icon} size={21} />
+                <Icon
+                  name={tab.icon}
+                  size={21}
+                  className={`transition-transform duration-200 ${isActive ? '-translate-y-[1.5px]' : ''}`}
+                />
                 {tab.label}
               </>
             )}

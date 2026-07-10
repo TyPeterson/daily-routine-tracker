@@ -69,13 +69,16 @@ export default function App() {
       <UpdateBanner />
       <DialogHost />
       <main {...tabSwipe} className="min-h-0 flex-1">
-        <Routes>
-          <Route path="/" element={<TodayView />} />
-          <Route path="/calendar" element={<CalendarView />} />
-          <Route path="/goals" element={<GoalsList />} />
-          <Route path="/goals/:goalId" element={<GoalDetail />} />
-          <Route path="/settings" element={<SettingsView />} />
-        </Routes>
+        {/* keyed by path so each screen breathes in on navigation */}
+        <div key={location.pathname} className="animate-screen-in h-full">
+          <Routes>
+            <Route path="/" element={<TodayView />} />
+            <Route path="/calendar" element={<CalendarView />} />
+            <Route path="/goals" element={<GoalsList />} />
+            <Route path="/goals/:goalId" element={<GoalDetail />} />
+            <Route path="/settings" element={<SettingsView />} />
+          </Routes>
+        </div>
       </main>
       <BottomNav />
     </div>

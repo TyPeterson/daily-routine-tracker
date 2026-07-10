@@ -1,13 +1,18 @@
-import { useRef, useState, type ReactNode, type TouchEvent } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Icon } from './Icon'
 
 const TRIGGER = 44 // scaled pull distance that triggers a refresh
 const MIN_HOLD_MS = 900 // stay pulled long enough to read as "refreshing"
 
 /**
- * Scroll container with native-style pull-to-refresh: an arrow flips once the
- * pull passes the threshold, and on release the area stays held open with a
- * spinner until the refresh (plus a minimum hold) completes.
+ * Scroll container with native-style pull-to-refresh.
+ *
+ * The gesture is owned outright: touchmove is registered non-passive and
+ * preventDefault()ed once a pull engages, so iOS never rubber-bands the list
+ * underneath the indicator (React's synthetic touch handlers are passive and
+ * can't do this — the source of the old fighting-motions jank). An arrow
+ * flips at the threshold; on release the area stays held open with a spinner
+ * until the refresh (plus a minimum hold) completes, then eases shut.
  */
 export function PullToRefresh({
   onRefresh,
@@ -19,64 +24,90 @@ export function PullToRefresh({
   children: ReactNode
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
-  const startY = useRef<number | null>(null)
   const [pull, setPull] = useState(0)
   const [dragging, setDragging] = useState(false)
   const [busy, setBusy] = useState(false)
 
-  const onTouchStart = (e: TouchEvent) => {
-    if ((scrollRef.current?.scrollTop ?? 1) <= 0) {
-      startY.current = e.touches[0]!.clientY
-      setDragging(true)
-    } else {
-      startY.current = null
-    }
-  }
+  const refreshRef = useRef(onRefresh)
+  refreshRef.current = onRefresh
 
-  const onTouchMove = (e: TouchEvent) => {
-    if (startY.current == null || busy) return
-    const dy = e.touches[0]!.clientY - startY.current
-    if (dy > 0 && (scrollRef.current?.scrollTop ?? 1) <= 0) {
-      setPull(Math.min(90, dy * 0.45))
-    } else {
-      setPull(0)
-    }
-  }
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
 
-  const onTouchEnd = async () => {
-    startY.current = null
-    setDragging(false)
-    if (busy) return
-    if (pull >= TRIGGER) {
-      setBusy(true)
-      setPull(TRIGGER)
-      const started = Date.now()
-      try {
-        await onRefresh()
-      } finally {
-        const hold = Math.max(0, MIN_HOLD_MS - (Date.now() - started))
-        window.setTimeout(() => {
-          setBusy(false)
-          setPull(0)
-        }, hold)
+    let gesture: { startY: number; pulling: boolean } | null = null
+    let pullNow = 0
+    let busyNow = false
+
+    const setPullBoth = (v: number) => {
+      pullNow = v
+      setPull(v)
+    }
+
+    const onStart = (e: TouchEvent) => {
+      if (busyNow) return
+      gesture = el.scrollTop <= 0 ? { startY: e.touches[0]!.clientY, pulling: false } : null
+    }
+
+    const onMove = (e: TouchEvent) => {
+      if (!gesture || busyNow) return
+      const dy = e.touches[0]!.clientY - gesture.startY
+      if (!gesture.pulling) {
+        if (dy > 6 && el.scrollTop <= 0) {
+          gesture.pulling = true
+          setDragging(true)
+        } else if (dy < 0) {
+          gesture = null
+          return
+        } else {
+          return
+        }
       }
-    } else {
-      setPull(0)
+      e.preventDefault()
+      setPullBoth(Math.max(0, Math.min(100, dy * 0.5)))
     }
-  }
+
+    const onEnd = () => {
+      const wasPulling = gesture?.pulling
+      gesture = null
+      setDragging(false)
+      if (!wasPulling || busyNow) return
+      if (pullNow >= TRIGGER) {
+        busyNow = true
+        setBusy(true)
+        setPullBoth(TRIGGER)
+        const started = Date.now()
+        void Promise.resolve(refreshRef.current()).finally(() => {
+          const hold = Math.max(0, MIN_HOLD_MS - (Date.now() - started))
+          window.setTimeout(() => {
+            busyNow = false
+            setBusy(false)
+            setPullBoth(0)
+          }, hold)
+        })
+      } else {
+        setPullBoth(0)
+      }
+    }
+
+    el.addEventListener('touchstart', onStart, { passive: true })
+    el.addEventListener('touchmove', onMove, { passive: false })
+    el.addEventListener('touchend', onEnd, { passive: true })
+    el.addEventListener('touchcancel', onEnd, { passive: true })
+    return () => {
+      el.removeEventListener('touchstart', onStart)
+      el.removeEventListener('touchmove', onMove)
+      el.removeEventListener('touchend', onEnd)
+      el.removeEventListener('touchcancel', onEnd)
+    }
+  }, [])
 
   return (
-    <div
-      ref={scrollRef}
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={() => void onTouchEnd()}
-      className={`overflow-y-auto overscroll-contain ${className ?? ''}`}
-    >
+    <div ref={scrollRef} className={`overflow-y-auto overscroll-contain ${className ?? ''}`}>
       <div
         style={{ height: busy ? TRIGGER : pull }}
         className={`flex items-end justify-center overflow-hidden ${
-          dragging ? '' : 'transition-[height] duration-200'
+          dragging ? '' : 'transition-[height] duration-300 ease-out'
         }`}
       >
         <div className="pb-2 text-ink-dim">

@@ -68,7 +68,7 @@ export function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) =
       }`}
     >
       <span
-        className={`block h-[22px] w-[22px] rounded-full border-[1.5px] border-edge bg-surface transition-transform ${
+        className={`block h-[22px] w-[22px] rounded-full border-[1.5px] border-edge bg-surface transition-transform duration-200 [transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)] ${
           on ? 'translate-x-[22px]' : ''
         }`}
       />

@@ -74,7 +74,7 @@ function DayCell({
     <button
       type="button"
       onClick={onSelect}
-      className={`flex min-h-0 flex-col items-stretch gap-1 overflow-hidden rounded-lg p-0.5 pt-1 text-left ${
+      className={`flex min-h-0 flex-col items-stretch gap-1 overflow-hidden rounded-lg p-0.5 pt-1 text-left transition-colors duration-150 active:bg-surface2/70 ${
         inMonth ? '' : 'opacity-35'
       }`}
     >

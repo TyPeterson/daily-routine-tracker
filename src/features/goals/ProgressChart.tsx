@@ -112,7 +112,9 @@ export function ProgressChart({
           strokeWidth={2}
           dot={{ r: 4, fill: seriesColor, strokeWidth: 2, stroke: surface }}
           activeDot={{ r: 6 }}
-          isAnimationActive={false}
+          isAnimationActive
+          animationDuration={550}
+          animationEasing="ease-out"
         />
       </LineChart>
     </ResponsiveContainer>

@@ -355,7 +355,7 @@ export default function GoalDetail() {
                     onClick={() =>
                       navigate(`/goals/${sub.id}`, { state: { backLabel: goal.title } })
                     }
-                    className="flex min-h-12 w-full items-center gap-3 px-4 py-2.5 text-left"
+                    className="flex min-h-12 w-full items-center gap-3 px-4 py-2.5 text-left transition-colors duration-150 active:bg-surface2/60"
                   >
                     {sub.color && (
                       <span
@@ -377,7 +377,7 @@ export default function GoalDetail() {
               <button
                 type="button"
                 onClick={() => setSubGoalEditorOpen(true)}
-                className="w-full px-4 py-3 text-left text-[14px] font-bold text-accent"
+                className="w-full px-4 py-3 text-left text-[14px] font-bold text-accent transition-colors duration-150 active:bg-surface2/60"
               >
                 + add sub-goal
               </button>

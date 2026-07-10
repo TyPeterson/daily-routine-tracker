@@ -298,7 +298,7 @@ export function TaskEditorSheet({
                     key={g.id}
                     type="button"
                     onClick={() => toggleGoal(g.id)}
-                    className="flex min-h-12 w-full items-center justify-between gap-3 px-4 py-2 text-left"
+                    className="flex min-h-12 w-full items-center justify-between gap-3 px-4 py-2 text-left transition-colors duration-150 active:bg-surface2/60"
                   >
                     <span className="text-[15px]">{g.title}</span>
                     <span
