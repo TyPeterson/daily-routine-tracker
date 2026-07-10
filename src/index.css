@@ -105,15 +105,20 @@
   }
 
   /*
-   * Lock the document: no overflow to scroll and no rubber-band, so the
-   * shell (bottom nav included) can never be dragged — only inner overflow
-   * containers move. Deliberately NOT position:fixed on body: iOS lays a
-   * fixed body out against a viewport that excludes the bottom safe area,
-   * which floated the whole app above the screen bottom.
+   * Lock the document so the shell (bottom nav included) can never be
+   * dragged — only inner overflow containers move. The lock lives on BODY
+   * only, never html: per spec, body's overflow propagates to the viewport
+   * (stopping document scroll) while body's own used overflow becomes
+   * visible, so nothing clips. On iOS standalone the html/body boxes come
+   * out ~60pt shorter than the real screen while #root's 100dvh is full
+   * height — overflow:hidden on html clipped that overhang and left a dead
+   * band above the home indicator (the v1.4.1/v1.4.2 bug).
    */
-  html,
   body {
     overflow: hidden;
+  }
+  html,
+  body {
     overscroll-behavior: none;
   }
 

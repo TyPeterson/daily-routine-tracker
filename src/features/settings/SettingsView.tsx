@@ -15,8 +15,34 @@ import {
   setSyncToken,
 } from './calendarSync'
 
+/** Measure how a CSS length actually resolves on this device. */
+function probeCssHeight(height: string): number {
+  const d = document.createElement('div')
+  d.style.cssText = `position:absolute;left:-9999px;top:0;width:1px;height:${height};`
+  document.body.appendChild(d)
+  const v = d.getBoundingClientRect().height
+  d.remove()
+  return Math.round(v)
+}
+
+/** Viewport ground truth for debugging layout gaps — shown on version tap. */
+function readViewportDiag(): string {
+  const root = document.getElementById('root')?.getBoundingClientRect()
+  const nav = document.querySelector('nav')?.getBoundingClientRect()
+  const html = document.documentElement.getBoundingClientRect()
+  return [
+    `standalone ${matchMedia('(display-mode: standalone)').matches}`,
+    `screen ${screen.width}×${screen.height}  innerH ${window.innerHeight}`,
+    `vvH ${Math.round(window.visualViewport?.height ?? 0)}  vvTop ${Math.round(window.visualViewport?.offsetTop ?? 0)}  scrollY ${Math.round(window.scrollY)}`,
+    `dvh ${probeCssHeight('100dvh')}  svh ${probeCssHeight('100svh')}  lvh ${probeCssHeight('100lvh')}`,
+    `htmlH ${Math.round(html.height)}  safeBottom ${probeCssHeight('env(safe-area-inset-bottom)')}`,
+    `rootH ${root ? Math.round(root.height) : '-'}  navBottom ${nav ? Math.round(nav.bottom) : '-'}`,
+  ].join('\n')
+}
+
 export default function SettingsView() {
   const [persisted, setPersisted] = useState<boolean | null>(null)
+  const [diag, setDiag] = useState<string | null>(null)
   const [updateStatus, setUpdateStatus] = useState<string | null>(null)
   const [theme, setTheme] = useState<ThemePref>(() => getThemePref())
   const [sync, setSync] = useState(() => getSyncState())
@@ -271,8 +297,20 @@ export default function SettingsView() {
           <SectionLabel index="04">app</SectionLabel>
           <Group>
             <Row label="version">
-              <span className="text-[14px] font-bold text-accent">v{__APP_VERSION__}</span>
+              {/* tap toggles a viewport readout for debugging layout gaps */}
+              <button
+                type="button"
+                onClick={() => setDiag((d) => (d ? null : readViewportDiag()))}
+                className="text-[14px] font-bold text-accent"
+              >
+                v{__APP_VERSION__}
+              </button>
             </Row>
+            {diag && (
+              <div className="px-4 pb-3 text-[11px] leading-relaxed whitespace-pre-wrap text-ink-dim select-text">
+                {diag}
+              </div>
+            )}
             <Row label="updated">
               <span className="text-[13px] text-ink-dim">
                 {format(new Date(__BUILD_DATE__), 'MMM d, yyyy h:mm a').toLowerCase()}
