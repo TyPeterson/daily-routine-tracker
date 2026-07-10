@@ -86,6 +86,31 @@
 @utility pb-safe {
   padding-bottom: env(safe-area-inset-bottom);
 }
+/* full height of the real glass — see --glass-h */
+@utility h-glass {
+  height: var(--glass-h);
+}
+
+/*
+ * The height of the physical screen ("glass"), for the app shell and every
+ * full-screen overlay. iOS 26 standalone keeps a Safari-like small/large
+ * viewport pair even with no visible bar: dvh/innerHeight sit at the SMALL
+ * state (62pt short on iPhone 17 Pro Max) and only expand when the document
+ * scrolls — which this app deliberately never allows (the nav must not
+ * move). lvh is the LARGE state = the true screen, and it is stable. In a
+ * browser tab lvh would run under real browser chrome, so dvh stays the
+ * default outside standalone.
+ */
+:root {
+  --glass-h: 100dvh;
+}
+@media (display-mode: standalone) {
+  @supports (height: 100lvh) {
+    :root {
+      --glass-h: 100lvh;
+    }
+  }
+}
 
 /*
  * base styles live in the base layer so Tailwind utilities (a later layer)
@@ -100,8 +125,11 @@
   }
 
   #root {
-    /* fill the real screen edge-to-edge; safe areas are handled per-surface */
-    height: 100dvh;
+    /* fill the real glass edge-to-edge; safe areas are handled per-surface.
+       relative so the Fab can anchor to the shell instead of the iOS
+       fixed-viewport (which is 62pt short in frozen standalone) */
+    height: var(--glass-h);
+    position: relative;
   }
 
   /*
@@ -112,6 +140,11 @@
    * indicator (v1.4.1–v1.4.3). Keeping the nav pinned during drags is
    * handled by the JS pan guard instead (src/hooks/panGuard.ts), which
    * cancels document-level touch pans without touching geometry.
+   *
+   * In standalone the document is intentionally 62px taller than html/body
+   * (#root spans the large viewport, percentages resolve to the small one).
+   * That overflow stays frozen at scrollY 0 by the pan guard and
+   * pinViewportListener — never by html/body CSS locks.
    */
 
   html {
@@ -138,6 +171,9 @@
   textarea {
     -webkit-user-select: text;
     user-select: text;
+    /* the pan guard lets caret drags through — keep those drags from
+       chaining into a document pan when the field itself can't scroll */
+    overscroll-behavior: contain;
   }
 
   /* 16px inputs prevent iOS from auto-zooming on focus */

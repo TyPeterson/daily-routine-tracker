@@ -1,11 +1,14 @@
-import { useEffect, type ReactNode } from 'react'
+import { type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Icon } from './Icon'
-import { useVisualViewportHeight } from '../hooks/useVisualViewport'
+import { useKeyboardInset } from '../hooks/useVisualViewport'
 
 /**
  * Bottom sheet modal, portaled to <body> so transformed/scrolling ancestors
- * can't break its fixed positioning.
+ * can't break its fixed positioning. The container is h-glass (not inset-0):
+ * in frozen standalone the iOS fixed-viewport bottom sits 62pt above the
+ * real screen, so bottom-anchoring to it would float the sheet and leave an
+ * undimmed band — the glass height carries it to the true bottom.
  *
  * Keyboard handling: the panel itself NEVER moves — no translating, no
  * resizing, no jumping chrome. A spacer inside the scroll body grows to the
@@ -26,19 +29,16 @@ export function Sheet({
   tall?: boolean
   children: ReactNode
 }) {
-  const viewportHeight = useVisualViewportHeight()
-  const keyboardInset = Math.max(0, window.innerHeight - viewportHeight)
+  const keyboardInset = useKeyboardInset()
 
-  useEffect(() => {
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = prev
-    }
-  }, [])
+  // deliberately NO body overflow lock while open: with the document
+  // intentionally overflowed in standalone, body{overflow:hidden} propagates
+  // to the viewport and distorts it (the v1.4.1–v1.4.3 dead-band class).
+  // Background scrolling is already stopped by the pan guard + the scroll
+  // body's overscroll-contain.
 
   return createPortal(
-    <div className="fixed inset-0 z-40">
+    <div className="h-glass fixed inset-x-0 top-0 z-40">
       <div className="animate-fade-in absolute inset-0 bg-black/45" onClick={onClose} />
       <div
         className={`animate-sheet-up absolute inset-x-0 bottom-0 flex flex-col rounded-t-[14px] border-x-[1.5px] border-t-[1.5px] border-edge bg-canvas ${

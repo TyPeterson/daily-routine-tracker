@@ -22,6 +22,19 @@ export function useVisualViewportHeight(): number {
 }
 
 /**
+ * How much of the app shell the iOS keyboard covers. Measured against the
+ * shell (#root, sized to the real glass via --glass-h), NOT innerHeight: in
+ * frozen standalone the layout viewport is 62pt shorter than the glass, so
+ * innerHeight − vvHeight under-reports the keyboard by that much. Everywhere
+ * else rootH === innerHeight and this is identical to the old formula.
+ */
+export function useKeyboardInset(): number {
+  const vvH = useVisualViewportHeight()
+  const glassH = document.getElementById('root')?.clientHeight ?? window.innerHeight
+  return Math.max(0, glassH - vvH)
+}
+
+/**
  * iOS pans the whole page to reveal a focused input, shoving the top of the
  * UI off-screen. Undo that pan whenever it happens — inner scroll containers
  * still scroll the input into view on their own.

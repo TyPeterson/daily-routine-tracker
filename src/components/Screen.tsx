@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { Icon } from './Icon'
 import { PullToRefresh } from './PullToRefresh'
 import { checkForUpdates } from '../pwa/useAppUpdate'
-import { useVisualViewportHeight } from '../hooks/useVisualViewport'
+import { useKeyboardInset } from '../hooks/useVisualViewport'
 
 /** Standard page: silkscreen header + pull-to-refresh scroll body. */
 export function Screen({
@@ -20,8 +20,7 @@ export function Screen({
   backLabel?: string
   children: ReactNode
 }) {
-  const viewportHeight = useVisualViewportHeight()
-  const keyboardInset = Math.max(0, window.innerHeight - viewportHeight)
+  const keyboardInset = useKeyboardInset()
   return (
     <PullToRefresh onRefresh={checkForUpdates} className="h-full">
       {/* header sits below the status bar; content scrolls edge-to-edge under it */}

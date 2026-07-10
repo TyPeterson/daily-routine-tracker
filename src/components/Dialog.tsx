@@ -95,7 +95,7 @@ export function DialogHost() {
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-6">
+    <div className="h-glass fixed inset-x-0 top-0 z-[70] flex items-center justify-center p-6">
       <div
         className="animate-fade-in absolute inset-0 bg-black/50"
         onClick={() => (current.showCancel ? close(null) : undefined)}

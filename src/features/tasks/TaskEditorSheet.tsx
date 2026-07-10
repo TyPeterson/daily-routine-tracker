@@ -22,7 +22,7 @@ import type { Task } from '../../db/models'
 import { addDaysStr, fromDateStr, type DateStr } from '../../domain/dates'
 import type { Recurrence } from '../../domain/recurrence'
 import { useActiveGoals } from '../../hooks/useGoals'
-import { useVisualViewportHeight } from '../../hooks/useVisualViewport'
+import { useKeyboardInset } from '../../hooks/useVisualViewport'
 
 const WEEKDAY_CHIPS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 
@@ -59,8 +59,7 @@ export function TaskEditorSheet({
   const [notesExpanded, setNotesExpanded] = useState(false)
   const [scopeAsk, setScopeAsk] = useState<null | 'save' | 'delete'>(null)
 
-  const viewportHeight = useVisualViewportHeight()
-  const keyboardInset = Math.max(0, window.innerHeight - viewportHeight)
+  const keyboardInset = useKeyboardInset()
 
   const completionCount =
     useLiveQuery(
@@ -344,7 +343,7 @@ export function TaskEditorSheet({
 
       {notesExpanded &&
         createPortal(
-          <div className="fixed inset-0 z-50 flex flex-col bg-canvas">
+          <div className="h-glass fixed inset-x-0 top-0 z-50 flex flex-col bg-canvas">
             <div className="pt-safe px-5">
               <div className="flex items-center justify-between py-3">
                 <h2 className="text-[17px] font-bold tracking-tight">notes</h2>
