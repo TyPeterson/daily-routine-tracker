@@ -13,6 +13,8 @@ export interface Task {
   endDate?: DateStr
   /** occurrence dates removed or split out of the series */
   skipDates?: DateStr[]
+  /** occurrence dates added outside the recurrence rule */
+  extraDates?: DateStr[]
   /** optional 'HH:mm' used for ordering and display */
   timeOfDay?: string
   /** goals this task contributes to (many-to-many) */

@@ -12,7 +12,6 @@ export interface SwipeAction {
   onAct: () => void
 }
 
-const CIRCLE = 42
 const GAP = 10
 const EDGE_PAD = 12
 
@@ -21,19 +20,23 @@ const EDGE_PAD = 12
  * keys on the right. `touch-action: pan-y` hands vertical panning to the
  * browser and keeps horizontal drags for us, so the page never scrolls or
  * jitters mid-swipe. Parent controls open state so only one row is open.
+ * Renders chrome-less — the consumer supplies any card faceplate around it.
  */
 export function SwipeActions({
   actions,
   open,
   onOpenChange,
   children,
+  size = 42,
 }: {
   actions: SwipeAction[]
   open: boolean
   onOpenChange: (open: boolean) => void
   children: ReactNode
+  /** action key diameter in px; rows shorter than this will clip the keys */
+  size?: number
 }) {
-  const fullWidth = actions.length * CIRCLE + (actions.length - 1) * GAP + EDGE_PAD * 2
+  const fullWidth = actions.length * size + (actions.length - 1) * GAP + EDGE_PAD * 2
   const start = useRef<{ x: number; y: number; offset: number } | null>(null)
   const [drag, setDragState] = useState<number | null>(null)
   // decisions read the ref: touch events can outpace React re-renders
@@ -74,7 +77,7 @@ export function SwipeActions({
   }
 
   return (
-    <div className="module relative overflow-hidden">
+    <div className="relative overflow-hidden">
       <div
         className="absolute inset-y-0 right-0 flex items-center justify-end"
         style={{ width: fullWidth, gap: GAP, paddingRight: EDGE_PAD }}
@@ -89,9 +92,9 @@ export function SwipeActions({
               a.onAct()
             }}
             className={`flex shrink-0 items-center justify-center rounded-full border-[1.5px] border-edge ${a.fg ?? 'text-white'} ${a.bg}`}
-            style={{ width: CIRCLE, height: CIRCLE }}
+            style={{ width: size, height: size }}
           >
-            <Icon name={a.icon} size={17} />
+            <Icon name={a.icon} size={Math.round(size * 0.4)} />
           </button>
         ))}
       </div>

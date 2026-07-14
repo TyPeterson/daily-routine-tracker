@@ -7,7 +7,7 @@ import { Fab } from '../../components/Fab'
 import { Icon } from '../../components/Icon'
 import { ProgressBar } from '../../components/ProgressBar'
 import { Screen } from '../../components/Screen'
-import { SwipeActions } from '../../components/SwipeActions'
+import { SwipeActions, type SwipeAction } from '../../components/SwipeActions'
 import { Group } from '../../components/forms'
 import { db } from '../../db/schema'
 import { unarchiveGoal } from '../../db/repo'
@@ -46,10 +46,36 @@ export default function GoalsList() {
       (checkpoints ?? []).filter((c) => c.goalId === g.id),
     )
 
-  const openGoal = (id: string) => navigate(`/goals/${id}`, { state: { backLabel: 'goals' } })
+  const openGoal = (id: string) => {
+    // tapping anywhere while a row is swiped open just closes it
+    if (openSwipeId) {
+      setOpenSwipeId(null)
+      return
+    }
+    navigate(`/goals/${id}`, { state: { backLabel: 'goals' } })
+  }
 
   const doArchive = (goal: Goal) => requestArchiveGoal(goal, childrenOf(goal.id).length)
   const doDelete = (goal: Goal) => requestDeleteGoal(goal, childrenOf(goal.id).length)
+
+  // sub-goals have no children, so archive/delete take the plain confirm path
+  const swipeActionsFor = (g: Goal): SwipeAction[] => [
+    { icon: 'pencil', label: 'edit', bg: 'bg-[#0055d4]', onAct: () => setEditing(g) },
+    {
+      icon: 'archive',
+      label: 'archive',
+      bg: 'bg-[#eab000]',
+      fg: 'text-[#141414]',
+      onAct: () => void doArchive(g),
+    },
+    { icon: 'trash', label: 'delete', bg: 'bg-danger', onAct: () => void doDelete(g) },
+  ]
+
+  const swipeProps = (id: string) => ({
+    open: openSwipeId === id,
+    onOpenChange: (open: boolean) =>
+      setOpenSwipeId((cur) => (open ? id : cur === id ? null : cur)),
+  })
 
   return (
     <>
@@ -66,116 +92,97 @@ export default function GoalsList() {
             const percent = percentOf(goal)
             const subGoals = childrenOf(goal.id)
             return (
-              <SwipeActions
-                key={goal.id}
-                open={openSwipeId === goal.id}
-                onOpenChange={(open) =>
-                  setOpenSwipeId((cur) => (open ? goal.id : cur === goal.id ? null : cur))
-                }
-                actions={[
-                  {
-                    icon: 'pencil',
-                    label: 'edit',
-                    bg: 'bg-[#0055d4]',
-                    onAct: () => setEditing(goal),
-                  },
-                  {
-                    icon: 'archive',
-                    label: 'archive',
-                    bg: 'bg-[#eab000]',
-                    fg: 'text-[#141414]',
-                    onAct: () => void doArchive(goal),
-                  },
-                  {
-                    icon: 'trash',
-                    label: 'delete',
-                    bg: 'bg-danger',
-                    onAct: () => void doDelete(goal),
-                  },
-                ]}
-              >
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => openGoal(goal.id)}
-                  onKeyDown={(e) => e.key === 'Enter' && openGoal(goal.id)}
-                  className="bg-surface p-4 transition-colors duration-150 active:bg-surface2"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="flex min-w-0 items-center gap-2 text-[16px] font-bold">
-                      {goal.color && (
-                        <span
-                          className="h-2.5 w-2.5 shrink-0 rounded-full border border-edge/60"
-                          style={{ background: goal.color }}
-                        />
-                      )}
-                      <span className="truncate">{goal.title}</span>
-                    </h3>
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      {goal.completedAt != null && (
-                        <span className="flex items-center gap-1.5 rounded-[5px] bg-good-soft px-1.5 py-0.5 text-[10px] font-bold text-good">
-                          <span className="led led-good" />
-                          done
-                        </span>
-                      )}
-                      {goal.targetDate && goal.completedAt == null && (
-                        <span className="rounded-[5px] bg-surface2 px-1.5 py-0.5 text-[10px] font-bold text-ink-dim">
-                          by {format(fromDateStr(goal.targetDate), 'MMM d yyyy').toLowerCase()}
-                        </span>
-                      )}
-                      <Icon name="chevron-right" size={15} className="text-ink-dim/60" />
+              <div key={goal.id} className="module overflow-hidden">
+                <SwipeActions {...swipeProps(goal.id)} actions={swipeActionsFor(goal)}>
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openGoal(goal.id)}
+                    onKeyDown={(e) => e.key === 'Enter' && openGoal(goal.id)}
+                    className="bg-surface p-4 transition-colors duration-150 active:bg-surface2"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="flex min-w-0 items-center gap-2 text-[16px] font-bold">
+                        {goal.color && (
+                          <span
+                            className="h-2.5 w-2.5 shrink-0 rounded-full border border-edge/60"
+                            style={{ background: goal.color }}
+                          />
+                        )}
+                        <span className="truncate">{goal.title}</span>
+                      </h3>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        {goal.completedAt != null && (
+                          <span className="flex items-center gap-1.5 rounded-[5px] bg-good-soft px-1.5 py-0.5 text-[10px] font-bold text-good">
+                            <span className="led led-good" />
+                            done
+                          </span>
+                        )}
+                        {goal.targetDate && goal.completedAt == null && (
+                          <span className="rounded-[5px] bg-surface2 px-1.5 py-0.5 text-[10px] font-bold text-ink-dim">
+                            by {format(fromDateStr(goal.targetDate), 'MMM d yyyy').toLowerCase()}
+                          </span>
+                        )}
+                        <Icon name="chevron-right" size={15} className="text-ink-dim/60" />
+                      </div>
                     </div>
+                    {goal.metric != null && (
+                      <div className="mt-3 flex items-center gap-3">
+                        <ProgressBar percent={percent} color={goal.color} className="flex-1" />
+                        <span className="w-10 text-right text-[13px] font-semibold text-ink-dim">
+                          {percent != null ? `${Math.round(percent)}%` : '—'}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                  {goal.metric != null && (
-                    <div className="mt-3 flex items-center gap-3">
-                      <ProgressBar percent={percent} color={goal.color} className="flex-1" />
-                      <span className="w-10 text-right text-[13px] font-semibold text-ink-dim">
-                        {percent != null ? `${Math.round(percent)}%` : '—'}
-                      </span>
-                    </div>
-                  )}
-                  {subGoals.length > 0 && (
-                    <div className="mt-3 space-y-2.5 border-t border-line pt-3">
+                </SwipeActions>
+                {subGoals.length > 0 && (
+                  <>
+                    <div className="mx-4 border-t border-line" aria-hidden />
+                    <div className="py-1.5">
                       {subGoals.map((sub) => {
                         const subPercent = percentOf(sub)
                         return (
-                          <button
+                          <SwipeActions
                             key={sub.id}
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              openGoal(sub.id)
-                            }}
-                            className="flex w-full items-center gap-3 text-left"
+                            size={34}
+                            {...swipeProps(sub.id)}
+                            actions={swipeActionsFor(sub)}
                           >
-                            {sub.color && (
-                              <span
-                                className="h-2 w-2 shrink-0 rounded-full border border-edge/60"
-                                style={{ background: sub.color }}
-                              />
-                            )}
-                            <span className="min-w-0 flex-1 truncate text-[14px]">
-                              {sub.title}
-                            </span>
-                            {sub.metric != null && (
-                              <>
-                                <ProgressBar
-                                  percent={subPercent}
-                                  color={sub.color}
-                                  className="w-20"
+                            <button
+                              type="button"
+                              onClick={() => openGoal(sub.id)}
+                              className="flex min-h-[36px] w-full items-center gap-3 bg-surface px-4 py-[5px] text-left transition-colors duration-150 active:bg-surface2"
+                            >
+                              {sub.color && (
+                                <span
+                                  className="h-2 w-2 shrink-0 rounded-full border border-edge/60"
+                                  style={{ background: sub.color }}
                                 />
-                                <span className="w-9 text-right text-[12px] font-medium text-ink-dim">
-                                  {subPercent != null ? `${Math.round(subPercent)}%` : '—'}
-                                </span>
-                              </>
-                            )}
-                          </button>
+                              )}
+                              <span className="min-w-0 flex-1 truncate text-[14px]">
+                                {sub.title}
+                              </span>
+                              {sub.metric != null && (
+                                <>
+                                  <ProgressBar
+                                    percent={subPercent}
+                                    color={sub.color}
+                                    className="w-20"
+                                  />
+                                  <span className="w-9 text-right text-[12px] font-medium text-ink-dim">
+                                    {subPercent != null ? `${Math.round(subPercent)}%` : '—'}
+                                  </span>
+                                </>
+                              )}
+                            </button>
+                          </SwipeActions>
                         )
                       })}
                     </div>
-                  )}
-                </div>
-              </SwipeActions>
+                  </>
+                )}
+              </div>
             )
           })}
         </div>

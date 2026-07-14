@@ -11,6 +11,7 @@ import { Group, Row, SectionLabel, Segmented, Toggle } from '../../components/fo
 import { ColorPicker, EmojiPicker } from '../../components/pickers'
 import { db } from '../../db/schema'
 import {
+  addExtraOccurrence,
   createTask,
   deleteOccurrence,
   deleteTask,
@@ -20,7 +21,8 @@ import {
 } from '../../db/repo'
 import type { Task } from '../../db/models'
 import { addDaysStr, fromDateStr, type DateStr } from '../../domain/dates'
-import type { Recurrence } from '../../domain/recurrence'
+import { describeRecurrence, occursOn, type Recurrence } from '../../domain/recurrence'
+import { effectiveTaskColor } from '../../domain/taskColor'
 import { useActiveGoals } from '../../hooks/useGoals'
 import { useKeyboardInset } from '../../hooks/useVisualViewport'
 
@@ -58,6 +60,9 @@ export function TaskEditorSheet({
   const [icon, setIcon] = useState<string | undefined>(task?.icon)
   const [notesExpanded, setNotesExpanded] = useState(false)
   const [scopeAsk, setScopeAsk] = useState<null | 'save' | 'delete'>(null)
+  const [mode, setMode] = useState<'new' | 'existing'>('new')
+  const [extraDate, setExtraDate] = useState(defaultDate)
+  const [extraTaskId, setExtraTaskId] = useState<string | null>(null)
 
   const keyboardInset = useKeyboardInset()
 
@@ -67,9 +72,23 @@ export function TaskEditorSheet({
       [task?.id],
     ) ?? 0
 
+  // candidates for "existing task" mode: any live recurring series
+  const knownTasks = useLiveQuery(
+    async () =>
+      (await db.tasks.toArray())
+        .filter((t) => !t.archivedAt && t.recurrence.type !== 'none')
+        .sort((a, b) => a.title.localeCompare(b.title)),
+    [],
+  )
+  const goalMap = new Map((goals ?? []).map((g) => [g.id, g]))
+
   const repeats = recType !== 'none'
   const isSeries = task != null && task.recurrence.type !== 'none'
-  const canSave = title.trim().length > 0 && (recType !== 'weekly' || weekdays.length > 0)
+  const logExisting = task == null && mode === 'existing'
+  const selectedKnown = knownTasks?.find((t) => t.id === extraTaskId)
+  const canSave = logExisting
+    ? selectedKnown != null && !occursOn(selectedKnown, extraDate)
+    : title.trim().length > 0 && (recType !== 'weekly' || weekdays.length > 0)
 
   const buildRecurrence = (): Recurrence => {
     switch (recType) {
@@ -97,6 +116,12 @@ export function TaskEditorSheet({
   })
 
   const save = async () => {
+    if (logExisting) {
+      if (!extraTaskId) return
+      await addExtraOccurrence(extraTaskId, extraDate)
+      onClose()
+      return
+    }
     if (task && isSeries) {
       // changing a series prompts for scope first
       setScopeAsk('save')
@@ -161,6 +186,97 @@ export function TaskEditorSheet({
   return (
     <Sheet title={task ? 'edit task' : 'new task'} tall onClose={onClose}>
       <div className="space-y-5">
+        {!task && (
+          <Segmented
+            value={mode}
+            onChange={setMode}
+            options={[
+              { value: 'new', label: 'new task' },
+              { value: 'existing', label: 'existing task' },
+            ]}
+          />
+        )}
+
+        {logExisting ? (
+          <>
+            <Group>
+              <Row label="on day">
+                <input
+                  type="date"
+                  value={extraDate}
+                  onChange={(e) => e.target.value && setExtraDate(e.target.value)}
+                  className="text-right font-semibold text-accent outline-none"
+                />
+              </Row>
+            </Group>
+
+            <section>
+              <SectionLabel index="01">pick a task</SectionLabel>
+              {knownTasks == null ? null : knownTasks.length > 0 ? (
+                <Group>
+                  {knownTasks.map((t) => {
+                    const alreadyOn = occursOn(t, extraDate)
+                    const dotColor = effectiveTaskColor(t, goalMap)
+                    const selected = extraTaskId === t.id
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        disabled={alreadyOn}
+                        onClick={() => setExtraTaskId(t.id)}
+                        className={`flex min-h-12 w-full items-center justify-between gap-3 px-4 py-2 text-left transition-colors duration-150 active:bg-surface2/60 ${
+                          alreadyOn ? 'opacity-50' : ''
+                        }`}
+                      >
+                        <span className="flex min-w-0 items-center gap-2.5">
+                          <span
+                            className="h-2.5 w-2.5 shrink-0 rounded-full border border-edge/60"
+                            style={
+                              dotColor
+                                ? { background: dotColor }
+                                : {
+                                    // no color set: a tiny speaker-grille dot
+                                    backgroundColor: 'var(--surface2)',
+                                    backgroundImage:
+                                      'radial-gradient(color-mix(in srgb, var(--ink-dim) 60%, transparent) 1px, transparent 1px)',
+                                    backgroundSize: '3px 3px',
+                                  }
+                            }
+                          />
+                          <span className="min-w-0">
+                            <span className="block truncate text-[15px]">
+                              {t.icon ? `${t.icon} ` : ''}
+                              {t.title}
+                            </span>
+                            <span className="block text-[11px] text-ink-dim">
+                              {alreadyOn
+                                ? 'already scheduled on this day'
+                                : describeRecurrence(t.recurrence).toLowerCase()}
+                            </span>
+                          </span>
+                        </span>
+                        <span
+                          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border ${
+                            selected
+                              ? 'border-edge bg-accent text-on-accent'
+                              : 'border-edge/40 bg-surface2 text-transparent'
+                          }`}
+                        >
+                          <Icon name="check" size={13} strokeWidth={3} />
+                        </span>
+                      </button>
+                    )
+                  })}
+                </Group>
+              ) : (
+                <p className="px-2 text-[13px] text-ink-dim">
+                  no repeating tasks yet — create one first
+                </p>
+              )}
+            </section>
+          </>
+        ) : (
+          <>
         <Group>
           <input
             value={title}
@@ -335,6 +451,8 @@ export function TaskEditorSheet({
             </p>
           )}
         </section>
+          </>
+        )}
 
         <div className="space-y-2.5 pt-1">
           <button
@@ -343,7 +461,7 @@ export function TaskEditorSheet({
             onClick={() => void save()}
             className="key key-primary w-full py-3.5 text-[15px] font-bold"
           >
-            {task ? 'save changes' : 'add task'}
+            {task ? 'save changes' : logExisting ? 'add occurrence' : 'add task'}
           </button>
           {task && (
             <button

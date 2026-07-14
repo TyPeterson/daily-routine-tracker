@@ -100,7 +100,14 @@ export function buildCalendar(tasks: Task[]): string {
     .sort((a, b) => a.id.localeCompare(b.id))
 
   for (const task of active) {
-    const start = firstOccurrence(task)
+    // anchor DTSTART on the rule alone — an off-rule extra day must not shift
+    // it, or the exported RRULE would expand from the wrong date
+    const ruleTask = { ...task, extraDates: undefined }
+    const ruleStart = firstOccurrence(ruleTask)
+    const extras = (task.extraDates ?? [])
+      .filter((d) => occursOn(task, d) && !occursOn(ruleTask, d))
+      .sort()
+    const start = ruleStart ?? extras[0]
     if (!start) continue
 
     lines.push('BEGIN:VEVENT', `UID:${task.id}@routine`, `DTSTAMP:${dtStamp(task.createdAt)}`)
@@ -113,7 +120,8 @@ export function buildCalendar(tasks: Task[]): string {
       lines.push(`DTSTART;VALUE=DATE:${dateStamp(start)}`)
     }
 
-    const rule = rrule(task)
+    // a task whose only occurrences are extras has no valid rule anchor
+    const rule = ruleStart ? rrule(task) : null
     if (rule) lines.push(`RRULE:${rule}`)
 
     const skips = (task.skipDates ?? []).filter((d) => d !== start || !occursOn(task, d))
@@ -123,6 +131,15 @@ export function buildCalendar(tasks: Task[]): string {
         task.timeOfDay
           ? `EXDATE:${stamps.map((d) => `${dateStamp(d)}T${timeStamp(task.timeOfDay!)}`).join(',')}`
           : `EXDATE;VALUE=DATE:${stamps.map(dateStamp).join(',')}`,
+      )
+    }
+
+    const rdates = extras.filter((d) => d !== start)
+    if (rdates.length > 0) {
+      lines.push(
+        task.timeOfDay
+          ? `RDATE:${rdates.map((d) => `${dateStamp(d)}T${timeStamp(task.timeOfDay!)}`).join(',')}`
+          : `RDATE;VALUE=DATE:${rdates.map(dateStamp).join(',')}`,
       )
     }
 

@@ -104,6 +104,68 @@ describe('occursOn', () => {
   })
 })
 
+describe('extraDates', () => {
+  it('adds single off-rule occurrences', () => {
+    // 2026-01-05 is a Monday
+    const t = item({
+      recurrence: { type: 'weekly', interval: 1, weekdays: [1, 3, 5] },
+      startDate: '2026-01-05',
+      extraDates: ['2026-01-06'], // a Tuesday
+    })
+    expect(occursOn(t, '2026-01-06')).toBe(true)
+    expect(occursOn(t, '2026-01-13')).toBe(false) // other Tuesdays unaffected
+    expect(occursOn(t, '2026-01-07')).toBe(true) // rule days unaffected
+  })
+
+  it('skipDates wins when a date is in both lists', () => {
+    const t = item({
+      recurrence: { type: 'daily', interval: 1 },
+      skipDates: ['2026-01-03'],
+      extraDates: ['2026-01-03'],
+    })
+    expect(occursOn(t, '2026-01-03')).toBe(false)
+  })
+
+  it('extras ignore the start/end window', () => {
+    const t = item({
+      recurrence: { type: 'daily', interval: 1 },
+      startDate: '2026-02-10',
+      endDate: '2026-02-12',
+      extraDates: ['2026-02-08', '2026-02-15'],
+    })
+    expect(occursOn(t, '2026-02-08')).toBe(true)
+    expect(occursOn(t, '2026-02-15')).toBe(true)
+    expect(occursOn(t, '2026-02-14')).toBe(false)
+  })
+
+  it('one-off tasks can gain extra days', () => {
+    const t = item({
+      recurrence: { type: 'none' },
+      startDate: '2026-03-05',
+      extraDates: ['2026-03-08'],
+    })
+    expect(occursOn(t, '2026-03-05')).toBe(true)
+    expect(occursOn(t, '2026-03-08')).toBe(true)
+  })
+
+  it('occurrencesInRange merges out-of-window extras in order, without duplicates', () => {
+    const t = item({
+      recurrence: { type: 'daily', interval: 2 },
+      startDate: '2026-01-05',
+      endDate: '2026-01-09',
+      // on the rule already; before start; after end; outside the queried range
+      extraDates: ['2026-01-07', '2026-01-02', '2026-01-12', '2026-02-01'],
+    })
+    expect(occurrencesInRange(t, '2026-01-01', '2026-01-31')).toEqual([
+      '2026-01-02',
+      '2026-01-05',
+      '2026-01-07',
+      '2026-01-09',
+      '2026-01-12',
+    ])
+  })
+})
+
 describe('occurrencesInRange', () => {
   it('collects daily occurrences within the window', () => {
     const t = item({ recurrence: { type: 'daily', interval: 2 }, startDate: '2026-01-01' })

@@ -85,6 +85,48 @@ describe('buildCalendar', () => {
     expect(ics).toContain('EXDATE;VALUE=DATE:20260701,20260703')
   })
 
+  it('extra days become RDATEs without shifting DTSTART', () => {
+    // Mondays; 2026-07-01 is a Wednesday → first rule day Jul 6, extras earlier
+    const ics = buildCalendar([
+      task({
+        recurrence: { type: 'weekly', interval: 1, weekdays: [1] },
+        extraDates: ['2026-07-02', '2026-07-04'],
+      }),
+    ])
+    expect(ics).toContain('DTSTART;VALUE=DATE:20260706')
+    expect(ics).toContain('RDATE;VALUE=DATE:20260702,20260704')
+  })
+
+  it('timed extras carry the time of day', () => {
+    const ics = buildCalendar([
+      task({
+        recurrence: { type: 'daily', interval: 1 },
+        timeOfDay: '07:30',
+        extraDates: ['2026-06-28'],
+      }),
+    ])
+    expect(ics).toContain('RDATE:20260628T073000')
+  })
+
+  it('extras the rule already produces emit no RDATE', () => {
+    const ics = buildCalendar([
+      task({ recurrence: { type: 'daily', interval: 1 }, extraDates: ['2026-07-03'] }),
+    ])
+    expect(ics).not.toContain('RDATE')
+  })
+
+  it('a task with only extra occurrences anchors on the first extra, no RRULE', () => {
+    const ics = buildCalendar([
+      task({
+        recurrence: { type: 'none' },
+        skipDates: ['2026-07-01'],
+        extraDates: ['2026-07-10'],
+      }),
+    ])
+    expect(ics).toContain('DTSTART;VALUE=DATE:20260710')
+    expect(ics).not.toContain('RRULE')
+  })
+
   it('escapes commas and prefixes the emoji in summaries', () => {
     const ics = buildCalendar([
       task({

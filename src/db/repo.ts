@@ -2,6 +2,7 @@ import { db } from './schema'
 import type { CheckIn, Checkpoint, Completion, Goal, Task } from './models'
 import { addDaysStr, type DateStr } from '../domain/dates'
 import { milestoneAchievedAt } from '../domain/progress'
+import { occursOn } from '../domain/recurrence'
 
 const newId = () => crypto.randomUUID()
 
@@ -25,6 +26,21 @@ export async function deleteTask(id: string): Promise<void> {
   })
 }
 
+/**
+ * Add an occurrence on a day the rule doesn't produce (logging an extra run).
+ * A previously deleted rule day is restored by un-skipping instead, so the
+ * series never tracks the same day twice.
+ */
+export async function addExtraOccurrence(taskId: string, date: DateStr): Promise<void> {
+  await db.tasks
+    .where('id')
+    .equals(taskId)
+    .modify((t) => {
+      if (t.skipDates?.includes(date)) t.skipDates = t.skipDates.filter((d) => d !== date)
+      if (!occursOn(t, date)) t.extraDates = [...(t.extraDates ?? []), date]
+    })
+}
+
 /** Remove a single occurrence from a series (and its completion, if any). */
 export async function deleteOccurrence(taskId: string, date: DateStr): Promise<void> {
   await db.transaction('rw', db.tasks, db.completions, async () => {
@@ -32,7 +48,8 @@ export async function deleteOccurrence(taskId: string, date: DateStr): Promise<v
       .where('id')
       .equals(taskId)
       .modify((t) => {
-        t.skipDates = [...(t.skipDates ?? []), date]
+        if (t.extraDates?.includes(date)) t.extraDates = t.extraDates.filter((d) => d !== date)
+        else t.skipDates = [...(t.skipDates ?? []), date]
       })
     await db.completions.where('[taskId+date]').equals([taskId, date]).delete()
   })
@@ -47,12 +64,21 @@ export async function endSeriesBefore(taskId: string, date: DateStr): Promise<vo
     const task = await db.tasks.get(taskId)
     if (!task) return
     const lastKept = addDaysStr(date, -1)
-    if (lastKept < task.startDate) {
+    // extras ignore endDate, so future ones must be pruned explicitly
+    const keptExtras = (task.extraDates ?? []).filter((d) => d < date)
+    if (lastKept < task.startDate && keptExtras.length === 0) {
       await db.completions.where('taskId').equals(taskId).delete()
       await db.tasks.delete(taskId)
       return
     }
-    await db.tasks.update(taskId, { endDate: lastKept })
+    await db.tasks
+      .where('id')
+      .equals(taskId)
+      .modify((t) => {
+        t.endDate = lastKept
+        if (keptExtras.length > 0) t.extraDates = keptExtras
+        else delete t.extraDates
+      })
     // completions logged on now-removed future occurrences make no sense
     await db.completions
       .where('taskId')
@@ -85,7 +111,8 @@ export async function splitOccurrence(
       .where('id')
       .equals(taskId)
       .modify((t) => {
-        t.skipDates = [...(t.skipDates ?? []), date]
+        if (t.extraDates?.includes(date)) t.extraDates = t.extraDates.filter((d) => d !== date)
+        else t.skipDates = [...(t.skipDates ?? []), date]
       })
     await db.completions
       .where('[taskId+date]')

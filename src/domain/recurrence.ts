@@ -25,14 +25,18 @@ export interface Schedulable {
   endDate?: DateStr
   /** dates explicitly removed from the series (deleted/split occurrences) */
   skipDates?: DateStr[]
+  /** dates explicitly added outside the rule; skipDates wins if a date is in both */
+  extraDates?: DateStr[]
 }
 
 /** Does this item have an occurrence on the given local date? */
 export function occursOn(item: Schedulable, date: DateStr): boolean {
+  if (item.skipDates?.includes(date)) return false
+  // extras are user assertions, not rule products — they ignore the start/end window
+  if (item.extraDates?.includes(date)) return true
   // DateStr sorts lexicographically in chronological order
   if (date < item.startDate) return false
   if (item.endDate && date > item.endDate) return false
-  if (item.skipDates?.includes(date)) return false
 
   const rec = item.recurrence
   const start = fromDateStr(item.startDate)
@@ -72,7 +76,11 @@ export function occurrencesInRange(
     if (occursOn(item, cur)) out.push(cur)
     cur = addDaysStr(cur, 1)
   }
-  return out
+  // the loop is clipped to the rule window; extras can live outside it
+  for (const d of item.extraDates ?? []) {
+    if (d >= rangeStart && d <= rangeEnd && !out.includes(d) && occursOn(item, d)) out.push(d)
+  }
+  return out.sort()
 }
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
