@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, type Dispatch, type SetStateAction } from 'react'
 import { format, startOfWeek } from 'date-fns'
 import { Fab } from '../../components/Fab'
 import { Icon } from '../../components/Icon'
 import { Screen } from '../../components/Screen'
+import { SwipeActions } from '../../components/SwipeActions'
 import { toggleCompletion } from '../../db/repo'
 import type { Goal, Task } from '../../db/models'
 import { addDaysStr, fromDateStr, toDateStr, todayStr, type DateStr } from '../../domain/dates'
@@ -10,6 +11,7 @@ import { useGoalsMap } from '../../hooks/useGoals'
 import { useTasksForDate } from '../../hooks/useTasksForDate'
 import { TaskCheckInFlow } from '../goals/TaskCheckInFlow'
 import { TaskEditorSheet } from '../tasks/TaskEditorSheet'
+import { requestDeleteTask } from '../tasks/taskActions'
 import { TaskRow } from './TaskRow'
 
 /** One day's checklist inside the week view. */
@@ -19,12 +21,17 @@ function DaySection({
   goals,
   onOpen,
   onCheckIn,
+  openSwipeId,
+  setOpenSwipeId,
 }: {
   date: DateStr
   isToday: boolean
   goals: Map<string, Goal>
   onOpen: (task: Task) => void
   onCheckIn: (task: Task) => void
+  /** shared across day sections so only one row is swiped open at a time */
+  openSwipeId: string | null
+  setOpenSwipeId: Dispatch<SetStateAction<string | null>>
 }) {
   const dayTasks = useTasksForDate(date)
   if (!dayTasks) return null
@@ -45,17 +52,48 @@ function DaySection({
       </div>
       {dayTasks.length > 0 ? (
         <div className="module divide-y divide-line overflow-hidden">
-          {dayTasks.map(({ task, completed }) => (
-            <TaskRow
-              key={task.id}
-              task={task}
-              completed={completed}
-              goals={goals}
-              onToggle={() => void toggleCompletion(task.id, date)}
-              onOpen={() => onOpen(task)}
-              onCheckIn={() => onCheckIn(task)}
-            />
-          ))}
+          {dayTasks.map(({ task, completed }) => {
+            const swipeId = `${date}:${task.id}`
+            // toggling closes any open row and still acts; opening the
+            // editor/check-in only closes it (tap again to actually open)
+            const closeThen = (fn: () => void) => () => {
+              if (openSwipeId) setOpenSwipeId(null)
+              fn()
+            }
+            const closeOnly = (fn: () => void) => () => {
+              if (openSwipeId) {
+                setOpenSwipeId(null)
+                return
+              }
+              fn()
+            }
+            return (
+              <SwipeActions
+                key={task.id}
+                open={openSwipeId === swipeId}
+                onOpenChange={(open) =>
+                  setOpenSwipeId((cur) => (open ? swipeId : cur === swipeId ? null : cur))
+                }
+                actions={[
+                  {
+                    icon: 'trash',
+                    label: 'delete',
+                    bg: 'bg-danger',
+                    onAct: () => void requestDeleteTask(task, date),
+                  },
+                ]}
+              >
+                <TaskRow
+                  task={task}
+                  completed={completed}
+                  goals={goals}
+                  onToggle={closeThen(() => void toggleCompletion(task.id, date))}
+                  onOpen={closeOnly(() => onOpen(task))}
+                  onCheckIn={closeOnly(() => onCheckIn(task))}
+                />
+              </SwipeActions>
+            )
+          })}
         </div>
       ) : (
         <p className="px-1 text-[12px] text-ink-dim/70">nothing scheduled</p>
@@ -74,6 +112,7 @@ export default function TodayView() {
     date: today,
   })
   const [checkIn, setCheckIn] = useState<{ task: Task; date: DateStr } | null>(null)
+  const [openSwipeId, setOpenSwipeId] = useState<string | null>(null)
 
   const isCurrentWeek = weekStart === currentWeekStart
   const weekEnd = addDaysStr(weekStart, 6)
@@ -127,6 +166,8 @@ export default function TodayView() {
             goals={goals}
             onOpen={(task) => setEditor({ open: true, task, date: d })}
             onCheckIn={(task) => setCheckIn({ task, date: d })}
+            openSwipeId={openSwipeId}
+            setOpenSwipeId={setOpenSwipeId}
           />
         ))}
       </Screen>

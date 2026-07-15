@@ -41,7 +41,7 @@ export function TaskRow({
   }
 
   return (
-    <div className="flex items-stretch">
+    <div className="flex items-stretch bg-surface">
       <button
         type="button"
         aria-label={completed ? 'Mark not done' : 'Mark done'}
