@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { BottomNav } from './components/BottomNav'
+import { CelebrateHost } from './components/Celebrate'
 import { DialogHost } from './components/Dialog'
 import { UpdateBanner } from './components/UpdateBanner'
 import { pinViewportListener } from './hooks/useVisualViewport'
@@ -72,6 +73,7 @@ export default function App() {
       <div className="pointer-events-none fixed inset-x-0 top-0 z-30 h-[env(safe-area-inset-top)] bg-canvas/70 backdrop-blur-md" />
       <UpdateBanner />
       <DialogHost />
+      <CelebrateHost />
       <main {...tabSwipe} className="min-h-0 flex-1">
         {/* keyed by path so each screen breathes in on navigation */}
         <div key={location.pathname} className="animate-screen-in h-full">

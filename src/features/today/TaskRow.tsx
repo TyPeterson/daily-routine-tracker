@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { celebrate } from '../../components/Celebrate'
 import { Icon } from '../../components/Icon'
 import type { Goal, Task } from '../../db/models'
 import { formatTimeOfDay } from '../../domain/dates'
@@ -34,6 +35,7 @@ export function TaskRow({
     if (!completed) {
       setJustCompleted(true)
       window.setTimeout(() => setJustCompleted(false), 350)
+      celebrate()
     }
     onToggle()
   }
