@@ -28,6 +28,8 @@ export interface Task {
   wagerCents?: number
   /** friend who gets paid when an occurrence is missed */
   wagerFriendId?: string
+  /** when set, checking a day off after it ends still clears the wager */
+  allowLateCompletion?: boolean
   createdAt: number
   archivedAt?: number
 }

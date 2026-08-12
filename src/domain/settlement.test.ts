@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addDaysStr, startOfWeekStr } from './dates'
+import { addDaysStr, fromDateStr, startOfWeekStr } from './dates'
 import {
   aggregateMissesByFriend,
   aggregateMissesByTask,
@@ -37,7 +37,13 @@ const miss = (partial: Partial<MissLine>): MissLine => ({
   ...partial,
 })
 
-const keys = (taskId: string, dates: string[]) => new Set(dates.map((d) => `${taskId}|${d}`))
+/** Checked off at noon on the day itself — never late. */
+const onTime = (taskId: string, dates: string[]) =>
+  new Map(dates.map((d) => [`${taskId}|${d}`, fromDateStr(d).getTime() + 12 * 3_600_000]))
+
+/** Checked off the morning after — late for that day. */
+const nextMorning = (taskId: string, dates: string[]) =>
+  new Map(dates.map((d) => [`${taskId}|${d}`, fromDateStr(addDaysStr(d, 1)).getTime() + 3_600_000]))
 
 describe('weeksToSettle', () => {
   it('emits nothing mid-week when last week is already settled', () => {
@@ -77,7 +83,7 @@ describe('weeksToSettle', () => {
 describe('computeWeekSettlement', () => {
   it('bills every uncompleted occurrence and wagers all of them', () => {
     const t = task({})
-    const done = keys('t1', ['2026-01-04', '2026-01-06', '2026-01-08'])
+    const done = onTime('t1', ['2026-01-04', '2026-01-06', '2026-01-08'])
     const { wageredCents, misses } = computeWeekSettlement([t], done, WEEK_START, WEEK_END)
     expect(wageredCents).toBe(7 * 300)
     expect(misses.map((m) => m.date)).toEqual([
@@ -91,7 +97,7 @@ describe('computeWeekSettlement', () => {
 
   it('a deleted (skipped) day is neither wagered nor billed', () => {
     const t = task({ skipDates: ['2026-01-05'] })
-    const { wageredCents, misses } = computeWeekSettlement([t], new Set(), WEEK_START, WEEK_END)
+    const { wageredCents, misses } = computeWeekSettlement([t], new Map(), WEEK_START, WEEK_END)
     expect(wageredCents).toBe(6 * 300)
     expect(misses.some((m) => m.date === '2026-01-05')).toBe(false)
   })
@@ -102,7 +108,7 @@ describe('computeWeekSettlement', () => {
       recurrence: { type: 'weekly', interval: 1, weekdays: [1] },
       extraDates: ['2026-01-09'],
     })
-    const { wageredCents, misses } = computeWeekSettlement([t], new Set(), WEEK_START, WEEK_END)
+    const { wageredCents, misses } = computeWeekSettlement([t], new Map(), WEEK_START, WEEK_END)
     expect(wageredCents).toBe(2 * 300) // Mon Jan 5 + extra Fri Jan 9
     expect(misses.map((m) => m.date)).toEqual(['2026-01-05', '2026-01-09'])
   })
@@ -113,23 +119,23 @@ describe('computeWeekSettlement', () => {
       extraDates: ['2026-01-09'],
       skipDates: ['2026-01-09'],
     })
-    const { wageredCents, misses } = computeWeekSettlement([t], new Set(), WEEK_START, WEEK_END)
+    const { wageredCents, misses } = computeWeekSettlement([t], new Map(), WEEK_START, WEEK_END)
     expect(wageredCents).toBe(300)
     expect(misses.map((m) => m.date)).toEqual(['2026-01-05'])
   })
 
   it('one-time tasks: billed when missed, clean when completed, ignored outside the week', () => {
     const laundry = task({ id: 'laundry', recurrence: { type: 'none' }, startDate: '2026-01-06', wagerCents: 500 })
-    const missed = computeWeekSettlement([laundry], new Set(), WEEK_START, WEEK_END)
+    const missed = computeWeekSettlement([laundry], new Map(), WEEK_START, WEEK_END)
     expect(missed.misses).toHaveLength(1)
     expect(missed.wageredCents).toBe(500)
 
-    const done = computeWeekSettlement([laundry], keys('laundry', ['2026-01-06']), WEEK_START, WEEK_END)
+    const done = computeWeekSettlement([laundry], onTime('laundry', ['2026-01-06']), WEEK_START, WEEK_END)
     expect(done.misses).toHaveLength(0)
     expect(done.wageredCents).toBe(500) // still counted as at stake
 
     const nextWeek = task({ id: 'laundry2', recurrence: { type: 'none' }, startDate: '2026-01-12' })
-    expect(computeWeekSettlement([nextWeek], new Set(), WEEK_START, WEEK_END).wageredCents).toBe(0)
+    expect(computeWeekSettlement([nextWeek], new Map(), WEEK_START, WEEK_END).wageredCents).toBe(0)
   })
 
   it('ignores tasks without a fully configured wager, and archived tasks', () => {
@@ -139,7 +145,7 @@ describe('computeWeekSettlement', () => {
     const archived = task({ id: 'd', archivedAt: 123 })
     const { wageredCents, misses } = computeWeekSettlement(
       [noWager, noFriend, zero, archived],
-      new Set(),
+      new Map(),
       WEEK_START,
       WEEK_END,
     )
@@ -150,17 +156,60 @@ describe('computeWeekSettlement', () => {
   it('respects the task window at week edges', () => {
     const startsMidWeek = task({ startDate: '2026-01-08' })
     const endedEarlier = task({ id: 't2', endDate: '2026-01-06' })
-    const r1 = computeWeekSettlement([startsMidWeek], new Set(), WEEK_START, WEEK_END)
+    const r1 = computeWeekSettlement([startsMidWeek], new Map(), WEEK_START, WEEK_END)
     expect(r1.misses.map((m) => m.date)).toEqual(['2026-01-08', '2026-01-09', '2026-01-10'])
-    const r2 = computeWeekSettlement([endedEarlier], new Set(), WEEK_START, WEEK_END)
+    const r2 = computeWeekSettlement([endedEarlier], new Map(), WEEK_START, WEEK_END)
     expect(r2.misses.map((m) => m.date)).toEqual(['2026-01-04', '2026-01-05', '2026-01-06'])
+  })
+
+  it('by default a day checked off after it ended still owes', () => {
+    const t = task({ recurrence: { type: 'none' }, startDate: '2026-01-06' })
+    const late = computeWeekSettlement([t], nextMorning('t1', ['2026-01-06']), WEEK_START, WEEK_END)
+    expect(late.misses.map((m) => m.date)).toEqual(['2026-01-06'])
+  })
+
+  it('allowLateCompletion forgives a day checked off afterwards', () => {
+    const t = task({ recurrence: { type: 'none' }, startDate: '2026-01-06', allowLateCompletion: true })
+    const late = computeWeekSettlement([t], nextMorning('t1', ['2026-01-06']), WEEK_START, WEEK_END)
+    expect(late.misses).toHaveLength(0)
+    expect(late.wageredCents).toBe(300)
+  })
+
+  it('an on-time tick clears the day either way', () => {
+    const strict = task({ recurrence: { type: 'none' }, startDate: '2026-01-06' })
+    const lenient = task({ ...strict, allowLateCompletion: true })
+    const done = onTime('t1', ['2026-01-06'])
+    expect(computeWeekSettlement([strict], done, WEEK_START, WEEK_END).misses).toHaveLength(0)
+    expect(computeWeekSettlement([lenient], done, WEEK_START, WEEK_END).misses).toHaveLength(0)
+  })
+
+  it('a tick at the last second of the day is still on time', () => {
+    const t = task({ recurrence: { type: 'none' }, startDate: '2026-01-06' })
+    const endOfDay = new Map([['t1|2026-01-06', fromDateStr('2026-01-07').getTime() - 1]])
+    expect(computeWeekSettlement([t], endOfDay, WEEK_START, WEEK_END).misses).toHaveLength(0)
+  })
+
+  it('mixes strict and lenient tasks in the same week', () => {
+    const strict = task({ id: 'strict', recurrence: { type: 'none' }, startDate: '2026-01-06' })
+    const lenient = task({
+      id: 'lenient',
+      recurrence: { type: 'none' },
+      startDate: '2026-01-06',
+      allowLateCompletion: true,
+    })
+    const done = new Map([
+      ...nextMorning('strict', ['2026-01-06']),
+      ...nextMorning('lenient', ['2026-01-06']),
+    ])
+    const { misses } = computeWeekSettlement([strict, lenient], done, WEEK_START, WEEK_END)
+    expect(misses.map((m) => m.taskId)).toEqual(['strict'])
   })
 
   it('sums wagers across multiple tasks and friends', () => {
     const exercise = task({}) // 7 × $3 to f1
     const teeth = task({ id: 't2', title: 'Brush Teeth', wagerCents: 200, wagerFriendId: 'f1' })
     const calories = task({ id: 't3', title: 'Calories', wagerCents: 200, wagerFriendId: 'f2' })
-    const done = new Set([...keys('t3', ['2026-01-04', '2026-01-05', '2026-01-06', '2026-01-07', '2026-01-08', '2026-01-09', '2026-01-10'])])
+    const done = new Map([...onTime('t3', ['2026-01-04', '2026-01-05', '2026-01-06', '2026-01-07', '2026-01-08', '2026-01-09', '2026-01-10'])])
     const { wageredCents, misses } = computeWeekSettlement([exercise, teeth, calories], done, WEEK_START, WEEK_END)
     expect(wageredCents).toBe(7 * 300 + 7 * 200 + 7 * 200)
     expect(misses.filter((m) => m.taskId === 't3')).toHaveLength(0)

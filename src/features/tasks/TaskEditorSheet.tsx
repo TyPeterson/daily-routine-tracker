@@ -67,6 +67,7 @@ export function TaskEditorSheet({
     task?.wagerCents != null ? Math.round(task.wagerCents / 100) : 5,
   )
   const [wagerFriendId, setWagerFriendId] = useState<string | undefined>(task?.wagerFriendId)
+  const [allowLate, setAllowLate] = useState(task?.allowLateCompletion === true)
   const [notesExpanded, setNotesExpanded] = useState(false)
   const [scopeAsk, setScopeAsk] = useState<null | 'save' | 'delete'>(null)
   const [mode, setMode] = useState<'new' | 'existing'>('new')
@@ -129,6 +130,7 @@ export function TaskEditorSheet({
     icon,
     wagerCents: hasWager ? wagerDollars * 100 : undefined,
     wagerFriendId: hasWager ? wagerFriendId : undefined,
+    allowLateCompletion: hasWager ? allowLate : undefined,
   })
 
   const save = async () => {
@@ -169,6 +171,7 @@ export function TaskEditorSheet({
       icon: icon ?? null,
       wagerCents: hasWager ? wagerDollars * 100 : null,
       wagerFriendId: hasWager ? (wagerFriendId ?? null) : null,
+      allowLateCompletion: hasWager ? allowLate : null,
     })
 
   const pristine = useRef<string | null>(null)
@@ -213,6 +216,7 @@ export function TaskEditorSheet({
         icon,
         wagerCents: hasWager ? wagerDollars * 100 : undefined,
         wagerFriendId: hasWager ? wagerFriendId : undefined,
+        allowLateCompletion: hasWager ? allowLate : undefined,
       })
     } else {
       await updateTask(task.id, buildPayload())
@@ -474,10 +478,17 @@ export function TaskEditorSheet({
               </Row>
             )}
             {hasWager && <FriendPicker value={wagerFriendId} onChange={setWagerFriendId} />}
+            {hasWager && (
+              <Row label="allow late completion">
+                <Toggle on={allowLate} onChange={setAllowLate} />
+              </Row>
+            )}
           </Group>
           {hasWager && (
             <p className="mt-1.5 px-1 text-[11px] text-ink-dim">
-              each missed day costs this amount — settled sundays
+              {allowLate
+                ? 'checking a day off late still clears it — until sunday settles the week'
+                : 'each missed day costs this amount — checking it off late still owes'}
             </p>
           )}
         </section>

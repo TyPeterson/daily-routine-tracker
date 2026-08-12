@@ -1,4 +1,4 @@
-import { addDaysStr, startOfWeekStr, type DateStr } from './dates'
+import { addDaysStr, fromDateStr, startOfWeekStr, type DateStr } from './dates'
 import { occurrencesInRange, type Schedulable } from './recurrence'
 
 /** One missed wagered occurrence, snapshotted at settlement time. */
@@ -32,6 +32,8 @@ export interface WagerTaskLike extends Schedulable {
   archivedAt?: number
   wagerCents?: number
   wagerFriendId?: string
+  /** when true, ticking the box after the day still clears the wager */
+  allowLateCompletion?: boolean
 }
 
 export interface FriendLike {
@@ -70,13 +72,24 @@ function hasActiveWager(t: WagerTaskLike): boolean {
 }
 
 /**
- * Misses + total at stake for one week. completedKeys entries are
- * `${taskId}|${date}`. Deleted occurrences (skipDates) and deleted tasks
- * simply don't occur, so they are neither wagered nor billed.
+ * Was the box ticked after its day had already ended? Completions record the
+ * wall-clock moment they were made, so a backfilled day is detectable.
+ */
+export function isLateCompletion(date: DateStr, completedAt: number): boolean {
+  return completedAt >= fromDateStr(addDaysStr(date, 1)).getTime()
+}
+
+/**
+ * Misses + total at stake for one week. `completedAt` maps `${taskId}|${date}`
+ * to the moment that day was checked off. Deleted occurrences (skipDates) and
+ * deleted tasks simply don't occur, so they are neither wagered nor billed.
+ *
+ * A task only forgives a late tick when allowLateCompletion is set; otherwise
+ * the day has to be checked off before it is over.
  */
 export function computeWeekSettlement(
   tasks: WagerTaskLike[],
-  completedKeys: ReadonlySet<string>,
+  completedAt: ReadonlyMap<string, number>,
   weekStart: DateStr,
   weekEnd: DateStr,
 ): { wageredCents: number; misses: MissLine[] } {
@@ -86,7 +99,9 @@ export function computeWeekSettlement(
     if (!hasActiveWager(t)) continue
     for (const date of occurrencesInRange(t, weekStart, weekEnd)) {
       wageredCents += t.wagerCents!
-      if (!completedKeys.has(`${t.id}|${date}`)) {
+      const at = completedAt.get(`${t.id}|${date}`)
+      const cleared = at != null && (t.allowLateCompletion === true || !isLateCompletion(date, at))
+      if (!cleared) {
         misses.push({
           taskId: t.id,
           title: t.title,

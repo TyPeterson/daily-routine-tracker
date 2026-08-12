@@ -65,8 +65,8 @@ export default function PaymentsView() {
       db.friends.toArray(),
       db.settlements.toArray(),
     ])
-    const keys = (rows: { taskId: string; date: string }[]) =>
-      new Set(rows.map((c) => `${c.taskId}|${c.date}`))
+    const keys = (rows: { taskId: string; date: string; completedAt: number }[]) =>
+      new Map(rows.map((c) => [`${c.taskId}|${c.date}`, c.completedAt]))
     // days of the current week that are already behind us; marking one of
     // them done later still erases its miss (the grace window)
     let earlier: { wageredCents: number; misses: MissLine[] } = { wageredCents: 0, misses: [] }

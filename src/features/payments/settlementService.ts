@@ -43,10 +43,12 @@ export async function settleDueWeeks(today = todayStr()): Promise<void> {
               .where('date')
               .between(weekStart, weekEnd, true, true)
               .toArray()
-            const completedKeys = new Set(completions.map((c) => `${c.taskId}|${c.date}`))
+            const completedAt = new Map(
+              completions.map((c) => [`${c.taskId}|${c.date}`, c.completedAt]),
+            )
             const { wageredCents, misses } = computeWeekSettlement(
               tasks,
-              completedKeys,
+              completedAt,
               weekStart,
               weekEnd,
             )
