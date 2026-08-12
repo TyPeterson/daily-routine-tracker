@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { format, getDate, getDay } from 'date-fns'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { confirmDialog } from '../../components/Dialog'
+import { choiceDialog, confirmDialog } from '../../components/Dialog'
 import { Icon } from '../../components/Icon'
 import { NumberField } from '../../components/NumberField'
 import { Sheet } from '../../components/Sheet'
@@ -148,6 +148,58 @@ export function TaskEditorSheet({
     onClose()
   }
 
+  /**
+   * Everything the form can change, normalized so fields hidden behind a
+   * toggle (a stashed end date, a wager that was switched back off) don't
+   * count as edits.
+   */
+  const formSnapshot = () =>
+    JSON.stringify({
+      title: title.trim(),
+      notes: notes.trim(),
+      startDate,
+      recType,
+      interval: repeats ? interval : null,
+      weekdays: recType === 'weekly' ? [...weekdays].sort((a, b) => a - b) : null,
+      dayOfMonth: recType === 'monthly' ? dayOfMonth : null,
+      endDate: repeats && hasEnd ? endDate : null,
+      timeOfDay: hasTime ? timeOfDay : null,
+      goalIds: [...goalIds].sort(),
+      color: color ?? null,
+      icon: icon ?? null,
+      wagerCents: hasWager ? wagerDollars * 100 : null,
+      wagerFriendId: hasWager ? (wagerFriendId ?? null) : null,
+    })
+
+  const pristine = useRef<string | null>(null)
+  pristine.current ??= formSnapshot()
+  const isDirty = logExisting ? extraTaskId != null : formSnapshot() !== pristine.current
+
+  /** Closing with edits in hand asks first; a clean form just closes. */
+  const requestClose = async () => {
+    if (!isDirty) {
+      onClose()
+      return
+    }
+    const discard = { id: 'discard', label: 'discard', kind: 'danger' as const }
+    const choice = await choiceDialog({
+      title: 'unsaved changes',
+      message: canSave ? undefined : "it's missing something required, so it can't be saved yet",
+      choices: canSave
+        ? [
+            {
+              id: 'save',
+              label: logExisting ? 'add occurrence' : 'save',
+              kind: 'primary' as const,
+            },
+            discard,
+          ]
+        : [discard],
+    })
+    if (choice === 'save') await save()
+    else if (choice === 'discard') onClose()
+  }
+
   const applySave = async (scope: 'one' | 'all') => {
     if (!task) return
     if (scope === 'one') {
@@ -202,7 +254,7 @@ export function TaskEditorSheet({
     recType === 'daily' ? 'day' : recType === 'weekly' ? 'week' : 'month'
 
   return (
-    <Sheet title={task ? 'edit task' : 'new task'} tall onClose={onClose}>
+    <Sheet title={task ? 'edit task' : 'new task'} tall onClose={() => void requestClose()}>
       <div className="space-y-5">
         {!task && (
           <Segmented
