@@ -8,13 +8,21 @@ import { Group, SectionLabel, Segmented } from '../../components/forms'
 import { db } from '../../db/schema'
 import type { Friend } from '../../db/models'
 import { deleteFriend } from '../../db/repo'
-import { addDaysStr, endOfWeekStr, fromDateStr, startOfWeekStr, todayStr } from '../../domain/dates'
+import {
+  addDaysStr,
+  endOfWeekStr,
+  fromDateStr,
+  startOfWeekStr,
+  toTimeStr,
+  todayStr,
+} from '../../domain/dates'
 import {
   aggregateMissesByFriend,
   aggregateMissesByTask,
   computeWeekSettlement,
   formatMoney,
   friendName,
+  isOverdue,
   type MissLine,
 } from '../../domain/settlement'
 import { AddFriendSheet } from './FriendPicker'
@@ -57,23 +65,38 @@ export default function PaymentsView() {
       db.friends.toArray(),
       db.settlements.toArray(),
     ])
-    // the in-progress week is computed live over days that have fully passed;
-    // marking an old day done still erases its provisional miss (grace window)
-    let provisional: { wageredCents: number; misses: MissLine[] } = { wageredCents: 0, misses: [] }
+    const keys = (rows: { taskId: string; date: string }[]) =>
+      new Set(rows.map((c) => `${c.taskId}|${c.date}`))
+    // days of the current week that are already behind us; marking one of
+    // them done later still erases its miss (the grace window)
+    let earlier: { wageredCents: number; misses: MissLine[] } = { wageredCents: 0, misses: [] }
     if (yesterday >= weekStart) {
-      const completions = await db.completions
-        .where('date')
-        .between(weekStart, yesterday, true, true)
-        .toArray()
-      const completedKeys = new Set(completions.map((c) => `${c.taskId}|${c.date}`))
-      provisional = computeWeekSettlement(tasks, completedKeys, weekStart, yesterday)
+      const done = await db.completions.where('date').between(weekStart, yesterday, true, true).toArray()
+      earlier = computeWeekSettlement(tasks, keys(done), weekStart, yesterday)
     }
-    return { friends, settlements, provisional }
+    // today in full; the time-of-day cut is applied at render so the number
+    // keeps up with the clock without re-running the query
+    const doneToday = await db.completions.where('date').equals(today).toArray()
+    const todays = computeWeekSettlement(tasks, keys(doneToday), today, today)
+    return {
+      friends,
+      settlements,
+      earlier,
+      todays,
+      timeByTask: new Map(tasks.map((t) => [t.id, t.timeOfDay])),
+    }
   }, [today])
 
   const friends = data?.friends ?? []
   const settlements = data?.settlements ?? []
-  const provisional = data?.provisional ?? { wageredCents: 0, misses: [] }
+  const earlier = data?.earlier ?? { wageredCents: 0, misses: [] }
+  const todays = data?.todays ?? { wageredCents: 0, misses: [] }
+  const timeByTask = data?.timeByTask ?? new Map<string, string | undefined>()
+
+  // only what's already come due today counts against you yet
+  const nowHm = toTimeStr(new Date(nowMs))
+  const todayMisses = todays.misses.filter((m) => isOverdue(timeByTask.get(m.taskId), nowHm))
+  const todayCents = todayMisses.reduce((sum, m) => sum + m.amountCents, 0)
 
   const from =
     timeframe === 'week'
@@ -84,9 +107,11 @@ export default function PaymentsView() {
           ? addDaysStr(today, -30)
           : '0000-01-01'
   // settled weeks are frozen records; only the current week is live
-  const misses = [...settlements.flatMap((s) => s.misses), ...provisional.misses].filter(
-    (m) => m.date >= from && m.date <= yesterday,
-  )
+  const misses = [
+    ...settlements.flatMap((s) => s.misses),
+    ...earlier.misses,
+    ...todayMisses,
+  ].filter((m) => m.date >= from && m.date <= today)
   const byTask = aggregateMissesByTask(misses)
   const byFriend = aggregateMissesByFriend(misses)
   const owedCents = misses.reduce((sum, m) => sum + m.amountCents, 0)
@@ -118,6 +143,11 @@ export default function PaymentsView() {
             <p className="mt-0.5 text-[31px] leading-tight font-bold tracking-tight">
               {formatMoney(owedCents)}
             </p>
+            {todayCents > 0 && (
+              <p className="mt-0.5 text-[15px] font-bold text-ink-dim/70">
+                {formatMoney(todayCents)} today
+              </p>
+            )}
             <p className="mt-2.5 border-t border-line pt-2.5 text-[11px] font-bold tracking-[0.08em] text-ink-dim">
               week closes in <span className="text-accent">{closesIn}</span>
             </p>
@@ -240,8 +270,8 @@ export default function PaymentsView() {
       {editing && <AddFriendSheet friend={editing} onClose={() => setEditing(null)} />}
       {previewing && (
         <SettlementPreview
-          misses={provisional.misses}
-          wageredCents={provisional.wageredCents}
+          misses={[...earlier.misses, ...todayMisses]}
+          wageredCents={earlier.wageredCents + todays.wageredCents}
           friends={friends}
           weekStart={weekStart}
           weekEnd={endOfWeekStr(today)}

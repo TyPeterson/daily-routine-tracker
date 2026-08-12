@@ -27,6 +27,8 @@ export interface WagerTaskLike extends Schedulable {
   id: string
   title: string
   icon?: string
+  /** 'HH:mm'; absent means the task is open all day */
+  timeOfDay?: string
   archivedAt?: number
   wagerCents?: number
   wagerFriendId?: string
@@ -97,6 +99,15 @@ export function computeWeekSettlement(
     }
   }
   return { wageredCents, misses }
+}
+
+/**
+ * Has an occurrence's moment arrived? A task with no set time is on the hook
+ * all day; a timed one only once the clock reaches it. Both arguments are
+ * 'HH:mm', which compares correctly as text because the hour is zero-padded.
+ */
+export function isOverdue(timeOfDay: string | undefined, nowHm: string): boolean {
+  return timeOfDay == null || timeOfDay <= nowHm
 }
 
 /** "Firstname Lastname" (lastName optional). */

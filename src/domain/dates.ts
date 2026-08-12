@@ -35,6 +35,11 @@ export function endOfWeekStr(s: DateStr): DateStr {
   return addDaysStr(startOfWeekStr(s), 6)
 }
 
+/** Local wall clock as 'HH:mm', directly comparable with a task's timeOfDay. */
+export function toTimeStr(d: Date): string {
+  return format(d, 'HH:mm')
+}
+
 /** '07:30' → '7:30 AM' */
 export function formatTimeOfDay(t: string): string {
   const [h = 0, m = 0] = t.split(':').map(Number)

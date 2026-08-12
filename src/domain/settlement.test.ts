@@ -6,6 +6,7 @@ import {
   buildPayouts,
   computeWeekSettlement,
   formatMoney,
+  isOverdue,
   weeksToSettle,
   type FriendLike,
   type MissLine,
@@ -212,6 +213,24 @@ describe('aggregate helpers', () => {
     ])
     expect(totals.get('f1')).toBe(600)
     expect(totals.get('f2')).toBe(500)
+  })
+})
+
+describe('isOverdue', () => {
+  it('counts an untimed task all day', () => {
+    expect(isOverdue(undefined, '00:00')).toBe(true)
+    expect(isOverdue(undefined, '23:59')).toBe(true)
+  })
+
+  it('counts a timed task only once its time arrives', () => {
+    expect(isOverdue('08:00', '07:59')).toBe(false)
+    expect(isOverdue('08:00', '08:00')).toBe(true)
+    expect(isOverdue('08:00', '09:30')).toBe(true)
+  })
+
+  it('compares padded hours correctly across the morning boundary', () => {
+    expect(isOverdue('09:30', '10:00')).toBe(true)
+    expect(isOverdue('21:00', '09:00')).toBe(false)
   })
 })
 
