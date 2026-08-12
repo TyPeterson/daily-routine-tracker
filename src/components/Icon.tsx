@@ -107,6 +107,12 @@ const ICONS = {
       <polyline points="19 12 12 19 5 12" />
     </>
   ),
+  search: (
+    <>
+      <circle cx="11" cy="11" r="7" />
+      <line x1="21" y1="21" x2="16.2" y2="16.2" />
+    </>
+  ),
   bill: (
     <>
       <rect x="1" y="5" width="22" height="14" rx="2" />

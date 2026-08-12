@@ -24,7 +24,7 @@ export function AddFriendSheet({
 }) {
   const [firstName, setFirstName] = useState(friend?.firstName ?? '')
   const [lastName, setLastName] = useState(friend?.lastName ?? '')
-  const [handle, setHandle] = useState(friend ? `@${friend.handle}` : '')
+  const [handle, setHandle] = useState(friend?.handle ?? '')
 
   const canSave = firstName.trim().length > 0 && normalizeHandle(handle).length > 0
 
@@ -34,12 +34,12 @@ export function AddFriendSheet({
       lastName: lastName.trim() || undefined,
       handle: normalizeHandle(handle),
     }
-    if (friend) {
-      await updateFriend(friend.id, payload)
-      onSaved?.(friend.id)
-    } else {
-      onSaved?.(await createFriend(payload))
-    }
+    // keep the write out of the optional-call argument: `onSaved?.(await x())`
+    // skips evaluating the argument entirely when onSaved is undefined
+    let id = friend?.id
+    if (friend) await updateFriend(friend.id, payload)
+    else id = await createFriend(payload)
+    if (id) onSaved?.(id)
     onClose()
   }
 
@@ -60,15 +60,18 @@ export function AddFriendSheet({
             placeholder="last name (optional)"
             className="w-full bg-transparent px-4 py-3 text-[15px] outline-none placeholder:text-ink-dim/70"
           />
-          <input
-            value={handle}
-            onChange={(e) => setHandle(e.target.value)}
-            placeholder="@venmo-handle"
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-            className="w-full bg-transparent px-4 py-3 text-[15px] outline-none placeholder:text-ink-dim/70"
-          />
+          <div className="flex items-center px-4">
+            <span className="text-[15px] font-semibold text-ink-dim">@</span>
+            <input
+              value={handle}
+              onChange={(e) => setHandle(e.target.value)}
+              placeholder="venmo-handle"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              className="w-full bg-transparent py-3 pl-1 text-[15px] outline-none placeholder:text-ink-dim/70"
+            />
+          </div>
         </Group>
         <button
           type="button"

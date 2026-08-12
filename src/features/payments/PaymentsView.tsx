@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { confirmDialog } from '../../components/Dialog'
 import { EmptyState } from '../../components/EmptyState'
@@ -8,7 +8,7 @@ import { Group, SectionLabel, Segmented } from '../../components/forms'
 import { db } from '../../db/schema'
 import type { Friend } from '../../db/models'
 import { deleteFriend } from '../../db/repo'
-import { addDaysStr, startOfWeekStr, todayStr } from '../../domain/dates'
+import { addDaysStr, endOfWeekStr, fromDateStr, startOfWeekStr, todayStr } from '../../domain/dates'
 import {
   aggregateMissesByFriend,
   aggregateMissesByTask,
@@ -18,17 +18,38 @@ import {
   type MissLine,
 } from '../../domain/settlement'
 import { AddFriendSheet } from './FriendPicker'
+import { SettlementPreview } from './SettlementPopup'
 
 type Timeframe = 'week' | 'mtd' | '30d' | 'all'
+
+/** "3d 14h" / "14h" / "under an hour" — day-and-hour precision is enough. */
+function formatCountdown(ms: number): string {
+  if (ms <= 0) return 'any moment'
+  const days = Math.floor(ms / 86_400_000)
+  const hours = Math.floor((ms % 86_400_000) / 3_600_000)
+  if (days > 0) return `${days}d ${hours}h`
+  if (hours > 0) return `${hours}h`
+  return 'under an hour'
+}
 
 export default function PaymentsView() {
   const [timeframe, setTimeframe] = useState<Timeframe>('week')
   const [editing, setEditing] = useState<Friend | null>(null)
   const [adding, setAdding] = useState(false)
+  const [previewing, setPreviewing] = useState(false)
 
   const today = todayStr()
   const weekStart = startOfWeekStr(today)
   const yesterday = addDaysStr(today, -1)
+
+  // the week locks in at next sunday midnight; day/hour precision, so a
+  // minute tick keeps it honest without churning the page
+  const [nowMs, setNowMs] = useState(() => Date.now())
+  useEffect(() => {
+    const timer = window.setInterval(() => setNowMs(Date.now()), 60_000)
+    return () => window.clearInterval(timer)
+  }, [])
+  const closesIn = formatCountdown(fromDateStr(addDaysStr(weekStart, 7)).getTime() - nowMs)
 
   const data = useLiveQuery(async () => {
     const [tasks, friends, settlements] = await Promise.all([
@@ -108,6 +129,9 @@ export default function PaymentsView() {
                 includes this week so far — not settled until sunday
               </p>
             )}
+            <p className="mt-2.5 border-t border-line pt-2.5 text-[11px] font-bold tracking-[0.08em] text-ink-dim">
+              week closes in <span className="text-accent">{closesIn}</span>
+            </p>
           </div>
         </section>
 
@@ -208,10 +232,33 @@ export default function PaymentsView() {
             </div>
           )}
         </section>
+        <section>
+          <SectionLabel index="04">testing</SectionLabel>
+          <button
+            type="button"
+            onClick={() => setPreviewing(true)}
+            className="key w-full py-3 text-[14px] font-bold"
+          >
+            preview settlement popup
+          </button>
+          <p className="mt-1.5 px-1 text-[11px] text-ink-dim">
+            dry run against this week so far — paying here settles nothing
+          </p>
+        </section>
       </div>
 
       {adding && <AddFriendSheet onClose={() => setAdding(false)} />}
       {editing && <AddFriendSheet friend={editing} onClose={() => setEditing(null)} />}
+      {previewing && (
+        <SettlementPreview
+          misses={provisional.misses}
+          wageredCents={provisional.wageredCents}
+          friends={friends}
+          weekStart={weekStart}
+          weekEnd={endOfWeekStr(today)}
+          onClose={() => setPreviewing(false)}
+        />
+      )}
     </Screen>
   )
 }
