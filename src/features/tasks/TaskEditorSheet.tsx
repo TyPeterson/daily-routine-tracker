@@ -29,6 +29,9 @@ import { useKeyboardInset } from '../../hooks/useVisualViewport'
 
 const WEEKDAY_CHIPS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 
+const WAGER_MIN = 1
+const WAGER_MAX = 999
+
 export function TaskEditorSheet({
   task,
   defaultDate,
@@ -389,7 +392,32 @@ export function TaskEditorSheet({
               <Row label="amount">
                 <span className="flex items-center gap-1.5">
                   <span className="font-semibold text-ink-dim">$</span>
-                  <NumberField value={wagerDollars} onCommit={setWagerDollars} min={1} max={999} />
+                  <NumberField
+                    value={wagerDollars}
+                    onCommit={setWagerDollars}
+                    min={WAGER_MIN}
+                    max={WAGER_MAX}
+                  />
+                  <span className="flex flex-col gap-[3px]">
+                    <button
+                      type="button"
+                      aria-label="Increase amount"
+                      onClick={() => setWagerDollars((n) => Math.min(WAGER_MAX, n + 1))}
+                      disabled={wagerDollars >= WAGER_MAX}
+                      className="key flex h-[19px] w-9 items-center justify-center rounded-[7px] disabled:opacity-40"
+                    >
+                      <Icon name="plus" size={11} strokeWidth={3} />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Decrease amount"
+                      onClick={() => setWagerDollars((n) => Math.max(WAGER_MIN, n - 1))}
+                      disabled={wagerDollars <= WAGER_MIN}
+                      className="key flex h-[19px] w-9 items-center justify-center rounded-[7px] disabled:opacity-40"
+                    >
+                      <Icon name="minus" size={11} strokeWidth={3} />
+                    </button>
+                  </span>
                 </span>
               </Row>
             )}
