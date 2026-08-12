@@ -1,4 +1,4 @@
-import { addDays, format } from 'date-fns'
+import { addDays, format, startOfWeek } from 'date-fns'
 
 /**
  * Local calendar date as 'YYYY-MM-DD'. All scheduling and completion keys use
@@ -23,6 +23,16 @@ export function todayStr(): DateStr {
 
 export function addDaysStr(s: DateStr, n: number): DateStr {
   return toDateStr(addDays(fromDateStr(s), n))
+}
+
+/** Sunday that starts the week containing s. Weeks are Sun–Sat app-wide. */
+export function startOfWeekStr(s: DateStr): DateStr {
+  return toDateStr(startOfWeek(fromDateStr(s), { weekStartsOn: 0 }))
+}
+
+/** Saturday that ends the week containing s. */
+export function endOfWeekStr(s: DateStr): DateStr {
+  return addDaysStr(startOfWeekStr(s), 6)
 }
 
 /** '07:30' → '7:30 AM' */

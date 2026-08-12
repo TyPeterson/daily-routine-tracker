@@ -5,6 +5,7 @@ const TABS: { to: string; icon: IconName; label: string }[] = [
   { to: '/', icon: 'sun', label: 'today' },
   { to: '/calendar', icon: 'calendar', label: 'calendar' },
   { to: '/goals', icon: 'target', label: 'goals' },
+  { to: '/payments', icon: 'bill', label: 'payments' },
   { to: '/settings', icon: 'settings', label: 'settings' },
 ]
 

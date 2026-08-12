@@ -1,5 +1,5 @@
 import { db } from './schema'
-import type { CheckIn, Checkpoint, Completion, Goal, Task } from './models'
+import type { CheckIn, Checkpoint, Completion, Friend, Goal, Meta, Settlement, Task } from './models'
 import { addDaysStr, type DateStr } from '../domain/dates'
 import { milestoneAchievedAt } from '../domain/progress'
 import { occursOn } from '../domain/recurrence'
@@ -282,36 +282,111 @@ export async function deleteCheckpoint(id: string): Promise<void> {
   await db.checkpoints.delete(id)
 }
 
+// ---------- friends ----------
+
+export async function createFriend(input: Omit<Friend, 'id' | 'createdAt'>): Promise<string> {
+  const id = newId()
+  await db.friends.add({ ...input, id, createdAt: Date.now() })
+  return id
+}
+
+export async function updateFriend(
+  id: string,
+  changes: Partial<Omit<Friend, 'id'>>,
+): Promise<void> {
+  await db.friends.update(id, changes)
+}
+
+/** Delete a friend and clear the wager off any task that pointed at them. */
+export async function deleteFriend(id: string): Promise<void> {
+  await db.transaction('rw', db.friends, db.tasks, async () => {
+    await db.tasks
+      .filter((t) => t.wagerFriendId === id)
+      .modify((t) => {
+        delete t.wagerCents
+        delete t.wagerFriendId
+      })
+    await db.friends.delete(id)
+  })
+}
+
+// ---------- settlements & meta ----------
+
+export const SETTLED_THROUGH_KEY = 'settledThrough'
+
+export async function getMeta(key: string): Promise<string | undefined> {
+  return (await db.meta.get(key))?.value
+}
+
+export async function setMeta(key: string, value: string): Promise<void> {
+  await db.meta.put({ key, value })
+}
+
+/** Stamp paidAt on this friend's payout lines in every pending settlement. */
+export async function markFriendPaid(friendId: string): Promise<void> {
+  const at = Date.now()
+  await db.transaction('rw', db.settlements, async () => {
+    await db.settlements
+      .filter((s) => s.acknowledgedAt == null)
+      .modify((s) => {
+        for (const p of s.payouts) {
+          if (p.friendId === friendId && p.paidAt == null) p.paidAt = at
+        }
+      })
+  })
+}
+
+/** Close the settlement popup: stamp acknowledgedAt on all pending records. */
+export async function acknowledgePendingSettlements(): Promise<void> {
+  const at = Date.now()
+  await db.settlements
+    .filter((s) => s.acknowledgedAt == null)
+    .modify((s) => {
+      s.acknowledgedAt = at
+    })
+}
+
 // ---------- backup ----------
 
 export interface BackupData {
   app: 'daily-routine-tracker'
-  version: 1
+  /** 1 = pre-payments backups (no friends/settlements/meta) */
+  version: number
   exportedAt: string
   tasks: Task[]
   completions: Completion[]
   goals: Goal[]
   checkpoints: Checkpoint[]
   checkIns: CheckIn[]
+  friends?: Friend[]
+  settlements?: Settlement[]
+  meta?: Meta[]
 }
 
 export async function exportData(): Promise<BackupData> {
-  const [tasks, completions, goals, checkpoints, checkIns] = await Promise.all([
-    db.tasks.toArray(),
-    db.completions.toArray(),
-    db.goals.toArray(),
-    db.checkpoints.toArray(),
-    db.checkIns.toArray(),
-  ])
+  const [tasks, completions, goals, checkpoints, checkIns, friends, settlements, meta] =
+    await Promise.all([
+      db.tasks.toArray(),
+      db.completions.toArray(),
+      db.goals.toArray(),
+      db.checkpoints.toArray(),
+      db.checkIns.toArray(),
+      db.friends.toArray(),
+      db.settlements.toArray(),
+      db.meta.toArray(),
+    ])
   return {
     app: 'daily-routine-tracker',
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     tasks,
     completions,
     goals,
     checkpoints,
     checkIns,
+    friends,
+    settlements,
+    meta,
   }
 }
 
@@ -322,7 +397,7 @@ export async function importData(data: BackupData): Promise<void> {
   }
   await db.transaction(
     'rw',
-    [db.tasks, db.completions, db.goals, db.checkpoints, db.checkIns],
+    [db.tasks, db.completions, db.goals, db.checkpoints, db.checkIns, db.friends, db.settlements, db.meta],
     async () => {
       await Promise.all([
         db.tasks.clear(),
@@ -330,12 +405,20 @@ export async function importData(data: BackupData): Promise<void> {
         db.goals.clear(),
         db.checkpoints.clear(),
         db.checkIns.clear(),
+        db.friends.clear(),
+        db.settlements.clear(),
+        db.meta.clear(),
       ])
       await db.tasks.bulkAdd(data.tasks)
       await db.completions.bulkAdd(data.completions ?? [])
       await db.goals.bulkAdd(data.goals ?? [])
       await db.checkpoints.bulkAdd(data.checkpoints ?? [])
       await db.checkIns.bulkAdd(data.checkIns ?? [])
+      // v1 backups predate these tables; a cleared meta table simply makes
+      // settlement re-anchor to last Saturday (no retroactive billing)
+      await db.friends.bulkAdd(data.friends ?? [])
+      await db.settlements.bulkAdd(data.settlements ?? [])
+      await db.meta.bulkAdd(data.meta ?? [])
     },
   )
 }

@@ -1,5 +1,6 @@
 import type { DateStr } from '../domain/dates'
 import type { Recurrence } from '../domain/recurrence'
+import type { MissLine, Payout } from '../domain/settlement'
 
 /** A (possibly repeating) to-do that shows up on calendar days. */
 export interface Task {
@@ -23,8 +24,46 @@ export interface Task {
   color?: string
   /** single emoji shown next to the title */
   icon?: string
+  /** money at stake per missed occurrence, in integer cents */
+  wagerCents?: number
+  /** friend who gets paid when an occurrence is missed */
+  wagerFriendId?: string
   createdAt: number
   archivedAt?: number
+}
+
+/** Someone wagers can be paid out to via Venmo. */
+export interface Friend {
+  id: string
+  firstName: string
+  lastName?: string
+  /** venmo handle, stored normalized (no '@') */
+  handle: string
+  createdAt: number
+}
+
+/**
+ * Frozen snapshot of one settled Sun–Sat week. Created the first time the app
+ * runs on/after the following Sunday; never recomputed afterwards, so later
+ * backfills or deletions can't rewrite payment history.
+ */
+export interface Settlement {
+  id: string
+  weekStart: DateStr
+  weekEnd: DateStr
+  createdAt: number
+  /** total cents that were at stake across all wagered occurrences */
+  wageredCents: number
+  misses: MissLine[]
+  payouts: Payout[]
+  /** set when the user closes the settlement popup */
+  acknowledgedAt?: number
+}
+
+/** Tiny key-value store for app-level markers (e.g. settledThrough). */
+export interface Meta {
+  key: string
+  value: string
 }
 
 /** One checked-off occurrence of a task on a specific local date. */

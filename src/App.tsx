@@ -8,13 +8,16 @@ import { pinViewportListener } from './hooks/useVisualViewport'
 import { installPanGuard } from './hooks/panGuard'
 import { useSwipeNav } from './hooks/useSwipe'
 import { startCalendarAutoSync } from './features/settings/calendarSync'
+import { startSettlementWatcher } from './features/payments/settlementService'
+import { SettlementPopup } from './features/payments/SettlementPopup'
 import TodayView from './features/today/TodayView'
 import CalendarView from './features/calendar/CalendarView'
 import GoalsList from './features/goals/GoalsList'
 import GoalDetail from './features/goals/GoalDetail'
+import PaymentsView from './features/payments/PaymentsView'
 import SettingsView from './features/settings/SettingsView'
 
-const TAB_PATHS = ['/', '/calendar', '/goals', '/settings']
+const TAB_PATHS = ['/', '/calendar', '/goals', '/payments', '/settings']
 
 export default function App() {
   const location = useLocation()
@@ -28,7 +31,9 @@ export default function App() {
         ? 1
         : location.pathname.startsWith('/goals')
           ? 2
-          : 3
+          : location.pathname.startsWith('/payments')
+            ? 3
+            : 4
   const tabSwipe = useSwipeNav(
     () => {
       if (tabIndex > 0) navigate(TAB_PATHS[tabIndex - 1]!)
@@ -59,11 +64,14 @@ export default function App() {
     document.addEventListener('focusin', reveal)
     // keep the subscribed calendar feed fresh while the app is open
     const stopCalendarSync = startCalendarAutoSync()
+    // freeze completed weeks into settlements (drives the sunday popup)
+    const stopSettlementWatcher = startSettlementWatcher()
     return () => {
       unpin()
       unguard()
       document.removeEventListener('focusin', reveal)
       stopCalendarSync()
+      stopSettlementWatcher()
     }
   }, [])
 
@@ -74,6 +82,7 @@ export default function App() {
       <UpdateBanner />
       <DialogHost />
       <CelebrateHost />
+      <SettlementPopup />
       <main {...tabSwipe} className="min-h-0 flex-1">
         {/* keyed by path so each screen breathes in on navigation */}
         <div key={location.pathname} className="animate-screen-in h-full">
@@ -82,6 +91,7 @@ export default function App() {
             <Route path="/calendar" element={<CalendarView />} />
             <Route path="/goals" element={<GoalsList />} />
             <Route path="/goals/:goalId" element={<GoalDetail />} />
+            <Route path="/payments" element={<PaymentsView />} />
             <Route path="/settings" element={<SettingsView />} />
           </Routes>
         </div>

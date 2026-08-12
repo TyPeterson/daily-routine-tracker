@@ -107,6 +107,14 @@ const ICONS = {
       <polyline points="19 12 12 19 5 12" />
     </>
   ),
+  bill: (
+    <>
+      <rect x="1" y="5" width="22" height="14" rx="2" />
+      <circle cx="12" cy="12" r="3.5" />
+      <line x1="4.5" y1="12" x2="4.51" y2="12" />
+      <line x1="19.5" y1="12" x2="19.51" y2="12" />
+    </>
+  ),
 } satisfies Record<string, ReactNode>
 
 export type IconName = keyof typeof ICONS

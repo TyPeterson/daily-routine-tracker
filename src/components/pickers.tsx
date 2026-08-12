@@ -1,4 +1,7 @@
+import { useState } from 'react'
+import { EMOJI_CATEGORIES } from './emojiData'
 import { Icon } from './Icon'
+import { Sheet } from './Sheet'
 
 /** Hardware-ish palette: signal colors that read on ivory and charcoal. */
 export const PRESET_COLORS = [
@@ -53,12 +56,47 @@ export function ColorPicker({
   )
 }
 
-/** Last grapheme cluster of a string — one full emoji, however many code points. */
-function lastGrapheme(s: string): string | undefined {
-  const trimmed = s.trim()
-  if (!trimmed) return undefined
-  const parts = [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(trimmed)]
-  return parts.at(-1)?.segment
+/**
+ * Full emoji grid in a sheet. Replaces typing into a text input: iOS can't be
+ * told to open the emoji keyboard, so the picker ships its own set and never
+ * focuses anything (no cursor, no keyboard).
+ */
+function EmojiGridSheet({
+  value,
+  onSelect,
+  onClose,
+}: {
+  value?: string
+  onSelect: (emoji: string) => void
+  onClose: () => void
+}) {
+  return (
+    <Sheet title="pick an emoji" onClose={onClose}>
+      <div className="space-y-5">
+        {EMOJI_CATEGORIES.map((cat) => (
+          <section key={cat.label}>
+            <p className="mb-1.5 px-1 text-[11px] font-bold tracking-[0.1em] text-ink-dim">
+              {cat.label}
+            </p>
+            <div className="grid grid-cols-8 gap-1.5">
+              {cat.emoji.map((e) => (
+                <button
+                  key={e}
+                  type="button"
+                  onClick={() => onSelect(e)}
+                  className={`flex h-9 items-center justify-center rounded-[8px] border border-edge/40 text-[19px] ${
+                    value === e ? 'bg-accent-soft ring-2 ring-accent' : 'bg-surface2'
+                  }`}
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+    </Sheet>
+  )
 }
 
 export function EmojiPicker({
@@ -69,6 +107,7 @@ export function EmojiPicker({
   onChange: (emoji: string | undefined) => void
 }) {
   const isCustom = value != null && !PRESET_EMOJI.includes(value)
+  const [gridOpen, setGridOpen] = useState(false)
   return (
     <div className="flex flex-wrap items-center gap-1.5 px-4 py-3">
       <button
@@ -93,18 +132,27 @@ export function EmojiPicker({
           {e}
         </button>
       ))}
-      {/* type any emoji from the keyboard */}
-      <input
-        value={isCustom ? value : ''}
-        onChange={(e) => onChange(lastGrapheme(e.target.value))}
-        placeholder="+"
-        aria-label="Custom emoji"
-        autoCapitalize="none"
-        autoCorrect="off"
-        className={`h-9 w-12 rounded-[8px] border text-center text-[17px] outline-none placeholder:text-ink-dim ${
-          isCustom ? 'border-accent bg-accent-soft ring-2 ring-accent' : 'border-edge/40 bg-surface2'
+      {/* any other emoji: opens the in-app grid, never the system keyboard */}
+      <button
+        type="button"
+        aria-label="More emoji"
+        onClick={() => setGridOpen(true)}
+        className={`flex h-9 w-12 items-center justify-center rounded-[8px] border text-[17px] ${
+          isCustom ? 'border-accent bg-accent-soft ring-2 ring-accent' : 'border-edge/40 bg-surface2 text-ink-dim'
         }`}
-      />
+      >
+        {isCustom ? value : <Icon name="plus" size={14} strokeWidth={2.5} />}
+      </button>
+      {gridOpen && (
+        <EmojiGridSheet
+          value={value}
+          onSelect={(e) => {
+            onChange(e)
+            setGridOpen(false)
+          }}
+          onClose={() => setGridOpen(false)}
+        />
+      )}
     </div>
   )
 }

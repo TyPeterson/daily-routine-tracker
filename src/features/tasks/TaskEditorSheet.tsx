@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
-import { getDate, getDay } from 'date-fns'
+import { format, getDate, getDay } from 'date-fns'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { confirmDialog } from '../../components/Dialog'
 import { Icon } from '../../components/Icon'
@@ -19,10 +19,11 @@ import {
   splitOccurrence,
   updateTask,
 } from '../../db/repo'
-import type { Task } from '../../db/models'
+import type { Goal, Task } from '../../db/models'
 import { addDaysStr, fromDateStr, type DateStr } from '../../domain/dates'
 import { describeRecurrence, occursOn, type Recurrence } from '../../domain/recurrence'
 import { effectiveTaskColor } from '../../domain/taskColor'
+import { FriendPicker } from '../payments/FriendPicker'
 import { useActiveGoals } from '../../hooks/useGoals'
 import { useKeyboardInset } from '../../hooks/useVisualViewport'
 
@@ -58,6 +59,11 @@ export function TaskEditorSheet({
   const [goalIds, setGoalIds] = useState<string[]>(task?.goalIds ?? [])
   const [color, setColor] = useState<string | undefined>(task?.color)
   const [icon, setIcon] = useState<string | undefined>(task?.icon)
+  const [hasWager, setHasWager] = useState(task?.wagerCents != null)
+  const [wagerDollars, setWagerDollars] = useState(
+    task?.wagerCents != null ? Math.round(task.wagerCents / 100) : 5,
+  )
+  const [wagerFriendId, setWagerFriendId] = useState<string | undefined>(task?.wagerFriendId)
   const [notesExpanded, setNotesExpanded] = useState(false)
   const [scopeAsk, setScopeAsk] = useState<null | 'save' | 'delete'>(null)
   const [mode, setMode] = useState<'new' | 'existing'>('new')
@@ -72,11 +78,12 @@ export function TaskEditorSheet({
       [task?.id],
     ) ?? 0
 
-  // candidates for "existing task" mode: any live recurring series
+  // candidates for "existing task" mode: any live task, one-offs included
+  // (re-logging a past one-off adds an extraDate on the same task)
   const knownTasks = useLiveQuery(
     async () =>
       (await db.tasks.toArray())
-        .filter((t) => !t.archivedAt && t.recurrence.type !== 'none')
+        .filter((t) => !t.archivedAt)
         .sort((a, b) => a.title.localeCompare(b.title)),
     [],
   )
@@ -86,9 +93,13 @@ export function TaskEditorSheet({
   const isSeries = task != null && task.recurrence.type !== 'none'
   const logExisting = task == null && mode === 'existing'
   const selectedKnown = knownTasks?.find((t) => t.id === extraTaskId)
+  const recurringKnown = (knownTasks ?? []).filter((t) => t.recurrence.type !== 'none')
+  const oneTimeKnown = (knownTasks ?? []).filter((t) => t.recurrence.type === 'none')
   const canSave = logExisting
     ? selectedKnown != null && !occursOn(selectedKnown, extraDate)
-    : title.trim().length > 0 && (recType !== 'weekly' || weekdays.length > 0)
+    : title.trim().length > 0 &&
+      (recType !== 'weekly' || weekdays.length > 0) &&
+      (!hasWager || (wagerDollars > 0 && wagerFriendId != null))
 
   const buildRecurrence = (): Recurrence => {
     switch (recType) {
@@ -113,6 +124,8 @@ export function TaskEditorSheet({
     goalIds,
     color,
     icon,
+    wagerCents: hasWager ? wagerDollars * 100 : undefined,
+    wagerFriendId: hasWager ? wagerFriendId : undefined,
   })
 
   const save = async () => {
@@ -143,6 +156,8 @@ export function TaskEditorSheet({
         goalIds,
         color,
         icon,
+        wagerCents: hasWager ? wagerDollars * 100 : undefined,
+        wagerFriendId: hasWager ? wagerFriendId : undefined,
       })
     } else {
       await updateTask(task.id, buildPayload())
@@ -210,70 +225,43 @@ export function TaskEditorSheet({
               </Row>
             </Group>
 
-            <section>
-              <SectionLabel index="01">pick a task</SectionLabel>
-              {knownTasks == null ? null : knownTasks.length > 0 ? (
+            {knownTasks != null && knownTasks.length === 0 && (
+              <p className="px-2 text-[13px] text-ink-dim">no tasks yet — create one first</p>
+            )}
+            {recurringKnown.length > 0 && (
+              <section>
+                <SectionLabel index="01">recurring</SectionLabel>
                 <Group>
-                  {knownTasks.map((t) => {
-                    const alreadyOn = occursOn(t, extraDate)
-                    const dotColor = effectiveTaskColor(t, goalMap)
-                    const selected = extraTaskId === t.id
-                    return (
-                      <button
-                        key={t.id}
-                        type="button"
-                        disabled={alreadyOn}
-                        onClick={() => setExtraTaskId(t.id)}
-                        className={`flex min-h-12 w-full items-center justify-between gap-3 px-4 py-2 text-left transition-colors duration-150 active:bg-surface2/60 ${
-                          alreadyOn ? 'opacity-50' : ''
-                        }`}
-                      >
-                        <span className="flex min-w-0 items-center gap-2.5">
-                          <span
-                            className="h-2.5 w-2.5 shrink-0 rounded-full border border-edge/60"
-                            style={
-                              dotColor
-                                ? { background: dotColor }
-                                : {
-                                    // no color set: a tiny speaker-grille dot
-                                    backgroundColor: 'var(--surface2)',
-                                    backgroundImage:
-                                      'radial-gradient(color-mix(in srgb, var(--ink-dim) 60%, transparent) 1px, transparent 1px)',
-                                    backgroundSize: '3px 3px',
-                                  }
-                            }
-                          />
-                          <span className="min-w-0">
-                            <span className="block truncate text-[15px]">
-                              {t.icon ? `${t.icon} ` : ''}
-                              {t.title}
-                            </span>
-                            <span className="block text-[11px] text-ink-dim">
-                              {alreadyOn
-                                ? 'already scheduled on this day'
-                                : describeRecurrence(t.recurrence).toLowerCase()}
-                            </span>
-                          </span>
-                        </span>
-                        <span
-                          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border ${
-                            selected
-                              ? 'border-edge bg-accent text-on-accent'
-                              : 'border-edge/40 bg-surface2 text-transparent'
-                          }`}
-                        >
-                          <Icon name="check" size={13} strokeWidth={3} />
-                        </span>
-                      </button>
-                    )
-                  })}
+                  {recurringKnown.map((t) => (
+                    <KnownTaskRow
+                      key={t.id}
+                      task={t}
+                      date={extraDate}
+                      selected={extraTaskId === t.id}
+                      goalMap={goalMap}
+                      onSelect={() => setExtraTaskId(t.id)}
+                    />
+                  ))}
                 </Group>
-              ) : (
-                <p className="px-2 text-[13px] text-ink-dim">
-                  no repeating tasks yet — create one first
-                </p>
-              )}
-            </section>
+              </section>
+            )}
+            {oneTimeKnown.length > 0 && (
+              <section>
+                <SectionLabel index="02">one time</SectionLabel>
+                <Group>
+                  {oneTimeKnown.map((t) => (
+                    <KnownTaskRow
+                      key={t.id}
+                      task={t}
+                      date={extraDate}
+                      selected={extraTaskId === t.id}
+                      goalMap={goalMap}
+                      onSelect={() => setExtraTaskId(t.id)}
+                    />
+                  ))}
+                </Group>
+              </section>
+            )}
           </>
         ) : (
           <>
@@ -392,7 +380,30 @@ export function TaskEditorSheet({
         </section>
 
         <section>
-          <SectionLabel index="03">appearance</SectionLabel>
+          <SectionLabel index="03">payment</SectionLabel>
+          <Group>
+            <Row label="bet money on it">
+              <Toggle on={hasWager} onChange={setHasWager} />
+            </Row>
+            {hasWager && (
+              <Row label="amount">
+                <span className="flex items-center gap-1.5">
+                  <span className="font-semibold text-ink-dim">$</span>
+                  <NumberField value={wagerDollars} onCommit={setWagerDollars} min={1} max={999} />
+                </span>
+              </Row>
+            )}
+            {hasWager && <FriendPicker value={wagerFriendId} onChange={setWagerFriendId} />}
+          </Group>
+          {hasWager && (
+            <p className="mt-1.5 px-1 text-[11px] text-ink-dim">
+              each missed day costs this amount — settled sundays
+            </p>
+          )}
+        </section>
+
+        <section>
+          <SectionLabel index="04">appearance</SectionLabel>
           <Group>
             <EmojiPicker value={icon} onChange={setIcon} />
             <ColorPicker value={color} onChange={setColor} />
@@ -403,7 +414,7 @@ export function TaskEditorSheet({
         </section>
 
         <section>
-          <SectionLabel index="04">linked goals</SectionLabel>
+          <SectionLabel index="05">linked goals</SectionLabel>
           {goals && goals.length > 0 ? (
             <Group>
               {goals.map((g) => {
@@ -564,5 +575,71 @@ export function TaskEditorSheet({
         </Sheet>
       )}
     </Sheet>
+  )
+}
+
+/** One selectable candidate in "existing task" mode. */
+function KnownTaskRow({
+  task,
+  date,
+  selected,
+  goalMap,
+  onSelect,
+}: {
+  task: Task
+  date: DateStr
+  selected: boolean
+  goalMap: Map<string, Goal>
+  onSelect: () => void
+}) {
+  const alreadyOn = occursOn(task, date)
+  const dotColor = effectiveTaskColor(task, goalMap)
+  const subtitle = alreadyOn
+    ? 'already scheduled on this day'
+    : task.recurrence.type === 'none'
+      ? `once · ${format(fromDateStr(task.startDate), 'MMM d').toLowerCase()}`
+      : describeRecurrence(task.recurrence).toLowerCase()
+  return (
+    <button
+      type="button"
+      disabled={alreadyOn}
+      onClick={onSelect}
+      className={`flex min-h-12 w-full items-center justify-between gap-3 px-4 py-2 text-left transition-colors duration-150 active:bg-surface2/60 ${
+        alreadyOn ? 'opacity-50' : ''
+      }`}
+    >
+      <span className="flex min-w-0 items-center gap-2.5">
+        <span
+          className="h-2.5 w-2.5 shrink-0 rounded-full border border-edge/60"
+          style={
+            dotColor
+              ? { background: dotColor }
+              : {
+                  // no color set: a tiny speaker-grille dot
+                  backgroundColor: 'var(--surface2)',
+                  backgroundImage:
+                    'radial-gradient(color-mix(in srgb, var(--ink-dim) 60%, transparent) 1px, transparent 1px)',
+                  backgroundSize: '3px 3px',
+                }
+          }
+        />
+        <span className="min-w-0">
+          <span className="block truncate text-[15px]">
+            {task.icon ? `${task.icon} ` : ''}
+            {task.title}
+          </span>
+          <span className="block text-[11px] text-ink-dim">{subtitle}</span>
+        </span>
+      </span>
+      <span
+        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border ${
+          selected
+            ? 'border-edge bg-accent text-on-accent'
+            : 'border-edge/40 bg-surface2 text-transparent'
+        }`}
+      >
+        <Icon name="check" size={13} strokeWidth={3} />
+      </span>
+    </button>
   )
 }
