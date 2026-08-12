@@ -90,7 +90,6 @@ export default function PaymentsView() {
   const byTask = aggregateMissesByTask(misses)
   const byFriend = aggregateMissesByFriend(misses)
   const owedCents = misses.reduce((sum, m) => sum + m.amountCents, 0)
-  const hasProvisional = provisional.misses.some((m) => m.date >= from)
 
   // names for the per-person list: live friends first, payout snapshots as
   // fallback so history keeps its labels after a friend is deleted
@@ -119,16 +118,6 @@ export default function PaymentsView() {
             <p className="mt-0.5 text-[31px] leading-tight font-bold tracking-tight">
               {formatMoney(owedCents)}
             </p>
-            {timeframe === 'week' && provisional.wageredCents > 0 && (
-              <p className="mt-1 text-[12px] text-ink-dim">
-                {formatMoney(provisional.wageredCents)} wagered so far this week
-              </p>
-            )}
-            {hasProvisional && (
-              <p className="mt-1 text-[11px] text-ink-dim">
-                includes this week so far — not settled until sunday
-              </p>
-            )}
             <p className="mt-2.5 border-t border-line pt-2.5 text-[11px] font-bold tracking-[0.08em] text-ink-dim">
               week closes in <span className="text-accent">{closesIn}</span>
             </p>
